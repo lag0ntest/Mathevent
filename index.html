@@ -61,11 +61,17 @@
             box-sizing: border-box;
             font-size: 1.2rem;
             text-align: center;
-            transition: border-color 0.2s;
+            transition: all 0.2s;
         }
         input:focus {
             border-color: var(--accent);
             outline: none;
+        }
+        input:disabled {
+            background: #1e293b;
+            border-color: #334155;
+            color: #64748b;
+            cursor: not-allowed;
         }
 
         button {
@@ -82,9 +88,15 @@
             transition: background 0.2s;
         }
         button:hover { background: #2563eb; }
+        button:disabled {
+            background: #334155;
+            cursor: not-allowed;
+        }
         
         .live-game-container {
             max-width: 650px;
+            position: relative;
+            overflow: hidden;
         }
 
         .math-box {
@@ -92,7 +104,6 @@
             margin: 40px 0;
             font-weight: 900;
             letter-spacing: 1px;
-            transition: color 0.15s ease;
         }
 
         .score-board {
@@ -106,23 +117,23 @@
             border: 1px solid #334155;
         }
 
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            20%, 60% { transform: translateX(-10px); }
-            40%, 80% { transform: translateX(10px); }
+        /* MASSIVE VISUAL OVERLAY FEEDBACK SYSTEM */
+        .feedback-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 8rem;
+            background: rgba(15, 23, 42, 0.7);
+            z-index: 10;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.15s ease-in-out;
+            border-radius: 12px;
         }
-        .wrong-shake {
-            animation: shake 0.3s ease-in-out;
-            border: 2px solid var(--danger) !important;
-        }
-
-        @keyframes pop {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.08); color: var(--success); }
-            100% { transform: scale(1); }
-        }
-        .correct-pop {
-            animation: pop 0.25s ease-out;
+        .feedback-overlay.show {
+            opacity: 1;
         }
 
         .admin-table {
@@ -197,7 +208,7 @@
         <button id="join-btn" onclick="navigateTo('/login')">Pre-Register / Login</button>
     </div>
 
-    <!-- 2. AUTHENTICATION SCREEN (Fixed hidden glitch visible in image_32929c.png) -->
+    <!-- 2. AUTHENTICATION SCREEN -->
     <div id="auth-screen" class="container hidden">
         <h1 id="auth-title">Create Account</h1>
         <input type="text" id="username" placeholder="Choose Username" required>
@@ -209,15 +220,18 @@
         <button onclick="navigateTo('/home')" style="background: #475569; margin-top: 15px;">Back</button>
     </div>
 
-    <!-- 3. GAMEPLAY SCREEN -->
+    <!-- 3. GAMEPLAY SCREEN (With Animation Overlay) -->
     <div id="game-screen" class="container live-game-container hidden">
+        <!-- Overlay container that pops over the main card frame -->
+        <div id="feedback-layer" class="feedback-overlay">✔️</div>
+
         <div class="score-board">
             <span>Competitor: <strong id="player-name" style="color: var(--accent);">---</strong></span>
             <span>Score: <strong id="score-val" style="color: var(--success);">0</strong></span>
         </div>
         <div class="math-box" id="problem">1 &times; 1</div>
         <input type="number" id="answer" placeholder="Type answer and press Enter..." autocomplete="off">
-        <button onclick="checkAnswer()" style="background: var(--success); padding: 15px; font-size: 1.1rem;">Submit Answer</button>
+        <button id="submit-btn" onclick="checkAnswer()" style="background: var(--success); padding: 15px; font-size: 1.1rem;">Submit Answer</button>
     </div>
 
     <!-- 4. ADMIN DASHBOARD -->
@@ -305,7 +319,7 @@
 
         let simScore = 0;
         let simCorrectAnswer = 0;
-        let isAnimationActive = false;
+        let isLockoutActive = false;
 
         // 1. TIMING ENGINE
         function updateTimer() {
@@ -341,7 +355,6 @@
         function handleRouting() {
             const path = window.location.pathname;
             
-            // Hide all screens initially
             ['countdown-screen', 'auth-screen', 'game-screen', 'admin-screen'].forEach(id => {
                 document.getElementById(id).classList.add('hidden');
             });
@@ -357,14 +370,11 @@
                 document.getElementById('admin-screen').classList.remove('hidden');
                 listenToLeaderboard();
             } else {
-                // Default fallback to /home map layout
                 document.getElementById('countdown-screen').classList.remove('hidden');
             }
         }
 
-        // Catch browser back/forward navigation arrows
         window.addEventListener('popstate', handleRouting);
-        // Run router on first load
         handleRouting();
 
         window.toggleAuthMode = function() {
@@ -434,13 +444,12 @@
             }
         }
 
-        // 4. MODAL MANAGEMENT & ACCOUNT MODIFICATIONS
+        // 4. MODAL MANAGEMENT
         window.openSettings = async function() {
             try {
                 const snapshot = await get(ref(db, `players/${currentUser}`));
                 if(snapshot.exists()) {
                     const data = snapshot.val();
-                    
                     if (data.hasEdited === true) {
                         document.getElementById('one-time-edit-container').classList.add('hidden');
                         document.getElementById('edit-locked-msg').classList.remove('hidden');
@@ -492,7 +501,7 @@
                 document.getElementById('user-status-msg').innerHTML = `Logged in as: <strong style="color:var(--success);">${currentUser}</strong>`;
                 
                 closeSettings();
-                alert("Profile successfully updated! Changes are locked in permanently.");
+                alert("Profile successfully updated!");
             } catch (err) {
                 alert("Failed to modify database: " + err.message);
             }
@@ -513,7 +522,7 @@
             navigateTo('/home');
         }
 
-        // 5. MATH ENGINE
+        // 5. MATH TOURNAMENT ENGINE WITH COOLDOWNS & FULL PAGE ANIMATED VISUALS
         function generateProblem() {
             const num1 = Math.floor(Math.random() * 12) + 1; 
             const num2 = Math.floor(Math.random() * 12) + 1; 
@@ -524,39 +533,61 @@
             const ansInput = document.getElementById('answer');
             if (ansInput) {
                 ansInput.value = '';
+                ansInput.disabled = false;
+                ansInput.placeholder = "Type answer and press Enter...";
                 ansInput.focus();
             }
+            document.getElementById('submit-btn').disabled = false;
         }
 
         window.checkAnswer = async function() {
-            if (isAnimationActive) return; 
+            if (isLockoutActive) return; 
             
             const ansInput = document.getElementById('answer');
-            const gameCard = document.getElementById('game-screen');
+            const submitBtn = document.getElementById('submit-btn');
+            const overlay = document.getElementById('feedback-layer');
             const userAns = parseInt(ansInput.value);
 
-            isAnimationActive = true;
+            if (isNaN(userAns)) return;
 
+            isLockoutActive = true;
+            ansInput.disabled = true;
+            submitBtn.disabled = true;
+
+            // Step A: Trigger full screen graphic pop for 1 full second
             if (userAns === currentCorrectAnswer) {
                 score++;
                 document.getElementById('score-val').innerText = score;
-                
-                gameCard.classList.add('correct-pop');
-                setTimeout(() => {
-                    gameCard.classList.remove('correct-pop');
-                    isAnimationActive = false;
-                    generateProblem();
-                }, 250);
-
+                overlay.innerHTML = "✔️";
+                overlay.style.color = "var(--success)";
                 await update(ref(db, 'players/' + currentUser), { score: score });
             } else {
-                ansInput.classList.add('wrong-shake');
-                setTimeout(() => {
-                    ansInput.classList.remove('wrong-shake');
-                    isAnimationActive = false;
-                    generateProblem();
-                }, 300);
+                overlay.innerHTML = "❌";
+                overlay.style.color = "var(--danger)";
             }
+
+            overlay.classList.add('show');
+
+            setTimeout(() => {
+                overlay.classList.remove('show');
+                // Step B: Transition instantly to the remaining 2 seconds of anti-cheat countdown
+                startAntiCheatTimer(2);
+            }, 1000);
+        }
+
+        function startAntiCheatTimer(secondsLeft) {
+            const ansInput = document.getElementById('answer');
+            
+            const interval = setInterval(() => {
+                if (secondsLeft <= 0) {
+                    clearInterval(interval);
+                    isLockoutActive = false;
+                    generateProblem();
+                } else {
+                    ansInput.placeholder = `🔒 Cooldown Active... (${secondsLeft}s)`;
+                    secondsLeft--;
+                }
+            }, 1000);
         }
 
         const ansInputEl = document.getElementById('answer');
@@ -589,7 +620,7 @@
             });
         }
 
-        // 7. DEV SANDBOX SIMULATOR WORKSPACE
+        // 7. ADMIN SANDBOX SIMULATOR WORKSPACE
         window.toggleSandbox = function() {
             const workspace = document.getElementById('sandbox-workspace');
             const testBtn = document.getElementById('test-btn');
