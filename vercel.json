@@ -1,12 +1,9 @@
 {
-  "version": 2,
-  "cleanUrls": true,
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        { "key": "Access-Control-Allow-Origin", "value": "*" }
-      ]
-    }
+  "rewrites": [
+    { "source": "/home", "destination": "/index.html" },
+    { "source": "/login", "destination": "/index.html" },
+    { "source": "/game", "destination": "/index.html" },
+    { "source": "/admin", "destination": "/index.html" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
