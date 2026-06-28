@@ -166,8 +166,7 @@
     <!-- FIREBASE MODULES -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getDatabase, ref, set, onValue, update, get, child } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
         // Your exact Firebase configuration
         const firebaseConfig = {
@@ -180,9 +179,8 @@
             measurementId: "G-Y4Z0YMMNZW"
         };
 
-        // Initialize Firebase
+        // Initialize Firebase Realtime Database
         const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
         const db = getDatabase(app);
 
         // Your custom Admin credentials
@@ -237,7 +235,7 @@
             document.getElementById('auth-btn').innerText = isLoginMode ? "Login" : "Register & Join";
         }
 
-        // 3. FIREBASE AUTH LOGIC
+        // 3. DATABASE PURE USERNAME AUTH LOGIC
         window.handleAuth = async function() {
             const user = document.getElementById('username').value.trim();
             const pass = document.getElementById('password').value;
@@ -250,30 +248,38 @@
                 return showScreen('admin-screen');
             }
 
-            const syntheticEmail = `${user.toLowerCase()}@iqmathevent.com`;
+            const dbRef = ref(db);
 
             try {
+                const snapshot = await get(child(dbRef, `players/${user}`));
+                
                 if (isLoginMode) {
-                    await signInWithEmailAndPassword(auth, syntheticEmail, pass);
-                    currentUser = user;
-                    
-                    onValue(ref(db, 'players/' + user), (snapshot) => {
-                        const data = snapshot.val();
-                        score = data ? (data.score || 0) : 0;
-                        document.getElementById('score-val').innerText = score;
-                    }, { onlyOnce: true });
-
+                    // Login Mode
+                    if (snapshot.exists()) {
+                        const playerData = snapshot.val();
+                        if (playerData.password === pass) {
+                            currentUser = user;
+                            score = playerData.score || 0;
+                        } else {
+                            return alert("Incorrect password!");
+                        }
+                    } else {
+                        return alert("Username does not exist! Please create an account.");
+                    }
                 } else {
-                    await createUserWithEmailAndPassword(auth, syntheticEmail, pass);
-                    currentUser = user;
-                    score = 0;
-                    
-                    // Store plain password alongside score for Admin visibility
-                    await set(ref(db, 'players/' + user), {
-                        username: user,
-                        password: pass,
-                        score: 0
-                    });
+                    // Registration Mode
+                    if (snapshot.exists()) {
+                        return alert("Username is already taken! Please choose another one.");
+                    } else {
+                        // Create user account straight in the Database root
+                        await set(ref(db, 'players/' + user), {
+                            username: user,
+                            password: pass,
+                            score: 0
+                        });
+                        currentUser = user;
+                        score = 0;
+                    }
                 }
 
                 document.getElementById('player-name').innerText = currentUser;
@@ -282,18 +288,17 @@
                 if (new Date() >= targetTime || eventForceStarted) {
                     showScreen('game-screen');
                 } else {
-                    alert("Account ready! Waiting for event launch at 11:30 AM.");
+                    alert("Account registered successfully! Waiting for event launch.");
                     showScreen('countdown-screen');
                 }
 
             } catch (error) {
-                alert(error.message);
+                alert("Database Error: " + error.message);
             }
         }
 
-        // 4. MATH LOGIC ENGINE (STRICT MULTIPLICATION ONLY)
+        // 4. MATH LOGIC ENGINE (STRICT MULTIPLICATION)
         function generateProblem() {
-            // Generates multiplication rules: 1 correct multiplication = 1 point
             const num1 = Math.floor(Math.random() * 11) + 2; // 2 to 12
             const num2 = Math.floor(Math.random() * 11) + 2; // 2 to 12
 
@@ -339,7 +344,7 @@
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
                         <td>${p.username}</td>
-                        <td style="font-family: monospace; color: #94a3b8;">${p.password || '******'}</td>
+                        <td style="font-family: monospace; color: #94a3b8;">${p.password}</td>
                         <td style="font-weight:bold; color:var(--success);">${p.score} pts</td>
                     `;
                     tbody.appendChild(tr);
@@ -347,10 +352,10 @@
             });
         }
 
-        // 6. ADMIN DEV TOOLS: TEST EVENT EARLY BUTTON
+        // 6. ADMIN FORCE START
         window.testEventEarly = function() {
             eventForceStarted = true;
-            alert("Dev Mode Enabled: Countdown bypassed. Registered users will drop straight into the math challenge!");
+            alert("Dev Mode Enabled: Countdown bypassed. Users can now play right away!");
             showScreen('countdown-screen');
         }
     </script>
