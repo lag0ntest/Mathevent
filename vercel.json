@@ -1,6 +1,12 @@
 {
-  "rules": {
-    ".read": true,
-    ".write": true
-  }
+  "version": 2,
+  "cleanUrls": true,
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" }
+      ]
+    }
+  ]
 }
