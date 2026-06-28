@@ -136,7 +136,6 @@
         }
         .feedback-overlay.show { opacity: 1; }
 
-        /* ADVANCED ADMIN CONTROL DASHBOARD STYLES */
         .admin-grid {
             display: grid;
             grid-template-columns: 1fr;
@@ -243,7 +242,7 @@
         <button id="submit-btn" onclick="checkAnswer()" style="background: var(--success); padding: 15px; font-size: 1.1rem;">Submit Answer</button>
     </div>
 
-    <!-- 4. HIGH-PERFORMANCE PRO ADMIN CONTROL PANEL -->
+    <!-- 4. ADMIN CONTROL PANEL -->
     <div id="admin-screen" class="container hidden" style="max-width: 950px;">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 15px; margin-bottom: 15px;">
             <div style="text-align: left;">
@@ -253,7 +252,6 @@
             <button onclick="logoutAdmin()" style="background: #334155; width: auto; padding: 8px 16px; margin: 0;">Exit Console</button>
         </div>
 
-        <!-- Row 1: Engine Controls & Configuration -->
         <div class="admin-grid">
             <div class="admin-panel-card">
                 <h3 style="color: var(--accent); margin-top: 0;">⚡ Real-time State Control</h3>
@@ -281,7 +279,6 @@
             </div>
         </div>
 
-        <!-- Row 2: Live Leaderboard Registry Audit Matrix -->
         <div class="admin-panel-card" style="margin-top: 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <h3 style="color: var(--success); margin: 0;">👥 Registered Competitors Ledger</h3>
@@ -343,7 +340,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        const ADMIN_USER = "Lag0n"; // cite: User Summary
+        const ADMIN_USER = "Lag0n";
         const ADMIN_PASS = "Lag0nadmin145";
 
         let currentSystemState = "countdown"; 
@@ -356,7 +353,7 @@
         let isLoginMode = false;
         let isLockoutActive = false;
 
-        // 1. DYNAMIC DISTRIBUTED STATE WATCHER ENGINE
+        // 1. DYNAMIC STATE WATCHER
         onValue(ref(db, 'system_config'), (snapshot) => {
             const data = snapshot.val();
             if (data) {
@@ -370,7 +367,6 @@
                     document.getElementById('sched-min').value = targetMinutes;
                 }
                 
-                // Live visual badges updates in panel
                 const badge = document.getElementById('global-status-badge');
                 if (badge) {
                     badge.innerText = currentSystemState;
@@ -383,7 +379,7 @@
             }
         });
 
-        // 2. TIMING SUBSYSTEM
+        // 2. FIXED TIMING SUBSYSTEM (Rolls over to next day if set target has passed)
         function runTimerTick() {
             if (currentSystemState === "live") {
                 document.getElementById("timer").innerHTML = "EVENT LIVE!";
@@ -399,15 +395,12 @@
             const targetTime = new Date();
             targetTime.setHours(targetHours, targetMinutes, 0, 0);
             
-            const distance = targetTime.getTime() - now.getTime();
-
-            if (distance <= 0) {
-                document.getElementById("timer").innerHTML = "EVENT LIVE!";
-                if (currentUser && currentUser !== ADMIN_USER) { // cite: User Summary
-                    navigateTo('/game');
-                }
-                return;
+            // FIX: If configured time has passed today, target that time tomorrow instead of breaking
+            if (targetTime <= now) {
+                targetTime.setDate(targetTime.getDate() + 1);
             }
+            
+            const distance = targetTime.getTime() - now.getTime();
 
             const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
             const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
@@ -419,7 +412,7 @@
         }
         setInterval(runTimerTick, 1000);
 
-        // 3. BROADCAST ROUTER
+        // 3. ROUTER
         window.navigateTo = function(path) {
             window.history.pushState({}, "", path);
             evaluateActiveUIRoute();
@@ -428,12 +421,11 @@
         function evaluateActiveUIRoute() {
             const path = window.location.pathname;
             
-            // Overrides based on system flags
-            if (currentSystemState === "live" && currentUser && currentUser !== ADMIN_USER && path !== '/game') { // cite: User Summary
+            if (currentSystemState === "live" && currentUser && currentUser !== ADMIN_USER && path !== '/game') {
                 window.history.pushState({}, "", '/game');
                 return evaluateActiveUIRoute();
             }
-            if (currentSystemState === "over" && currentUser && currentUser !== ADMIN_USER && path === '/game') { // cite: User Summary
+            if (currentSystemState === "over" && currentUser && currentUser !== ADMIN_USER && path === '/game') {
                 window.history.pushState({}, "", '/home');
                 return evaluateActiveUIRoute();
             }
@@ -450,7 +442,7 @@
                 document.getElementById('game-screen').classList.remove('hidden');
                 generateProblem();
             } else if (path === '/admin') {
-                if (currentUser !== ADMIN_USER) return navigateTo('/login'); // cite: User Summary
+                if (currentUser !== ADMIN_USER) return navigateTo('/login');
                 document.getElementById('admin-screen').classList.remove('hidden');
                 listenToLeaderboard();
             } else {
@@ -473,8 +465,8 @@
 
             if (!user || !pass) return alert("Please fill out all fields.");
 
-            if (user === ADMIN_USER && pass === ADMIN_PASS) { // cite: User Summary
-                currentUser = ADMIN_USER; // cite: User Summary
+            if (user === ADMIN_USER && pass === ADMIN_PASS) {
+                currentUser = ADMIN_USER;
                 return navigateTo('/admin');
             }
 
@@ -510,7 +502,7 @@
             } catch (error) { alert("Database Error: " + error.message); }
         }
 
-        // 5. ADMINISTRATIVE DISPATCH CONTROL ACTIONS
+        // 5. ADMIN CONTROL ACTIONS
         window.adminSetState = async function(nextState) {
             try {
                 await update(ref(db, 'system_config'), { state: nextState });
@@ -605,7 +597,7 @@
             if (e.key === 'Enter') checkAnswer();
         });
 
-        // 7. LEADERBOARD RECONCILIATION AUDIT
+        // 7. LEADERBOARD
         function listenToLeaderboard() {
             const tbody = document.getElementById('admin-list');
             onValue(ref(db, 'players'), (snapshot) => {
@@ -631,7 +623,7 @@
             });
         }
 
-        // 8. SETTINGS MODALS MODULES
+        // 8. PROFILE MODALS
         window.openSettings = async function() {
             try {
                 const snapshot = await get(ref(db, `players/${currentUser}`));
@@ -657,7 +649,7 @@
             const newU = document.getElementById('edit-username').value.trim();
             const newP = document.getElementById('edit-password').value;
             if(!newU || !newP) return alert("Fields cannot be blank.");
-            if(newU === ADMIN_USER) return alert("Invalid identity handle choice."); // cite: User Summary
+            if(newU === ADMIN_USER) return alert("Invalid identity handle choice.");
 
             try {
                 if (newU !== currentUser) {
@@ -685,7 +677,6 @@
 
         window.logoutAdmin = function() { currentUser = null; navigateTo('/home'); }
 
-        // Initial Evaluation Entry
         evaluateActiveUIRoute();
     </script>
 </body>
