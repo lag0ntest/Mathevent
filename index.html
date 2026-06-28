@@ -83,13 +83,12 @@
         }
         button:hover { background: #2563eb; }
         
-        /* ENHANCED LIVE GAMEPLAY GRAPHICS */
         .live-game-container {
-            max-width: 650px; /* Made bigger on the screen */
+            max-width: 650px;
         }
 
         .math-box {
-            font-size: 4.5rem; /* Massive screen presence */
+            font-size: 4.5rem;
             margin: 40px 0;
             font-weight: 900;
             letter-spacing: 1px;
@@ -107,7 +106,6 @@
             border: 1px solid #334155;
         }
 
-        /* DYNAMIC FEEDBACK ANIMATIONS */
         @keyframes shake {
             0%, 100% { transform: translateX(0); }
             20%, 60% { transform: translateX(-10px); }
@@ -196,11 +194,11 @@
         <h1 id="countdown-title">Event Starting Soon</h1>
         <p id="user-status-msg" style="color: #94a3b8;">Create an account or login below to lock in your spot.</p>
         <div id="timer" class="timer">00:00:00</div>
-        <button id="join-btn" onclick="showScreen('auth-screen')">Pre-Register / Login</button>
+        <button id="join-btn" onclick="navigateTo('/login')">Pre-Register / Login</button>
     </div>
 
-    <!-- 2. AUTHENTICATION SCREEN -->
-    <div id="auth-screen" class="container">
+    <!-- 2. AUTHENTICATION SCREEN (Fixed hidden glitch visible in image_32929c.png) -->
+    <div id="auth-screen" class="container hidden">
         <h1 id="auth-title">Create Account</h1>
         <input type="text" id="username" placeholder="Choose Username" required>
         <input type="password" id="password" placeholder="Choose Password" required>
@@ -208,10 +206,10 @@
         <p style="font-size: 0.9rem; color: #94a3b8; cursor: pointer; margin-top: 15px;" onclick="toggleAuthMode()">
             Already registered? Switch to Login
         </p>
-        <button onclick="showScreen('countdown-screen')" style="background: #475569; margin-top: 15px;">Back</button>
+        <button onclick="navigateTo('/home')" style="background: #475569; margin-top: 15px;">Back</button>
     </div>
 
-    <!-- 3. GAMEPLAY SCREEN (ENHANCED & ENLARGED) -->
+    <!-- 3. GAMEPLAY SCREEN -->
     <div id="game-screen" class="container live-game-container hidden">
         <div class="score-board">
             <span>Competitor: <strong id="player-name" style="color: var(--accent);">---</strong></span>
@@ -309,7 +307,7 @@
         let simCorrectAnswer = 0;
         let isAnimationActive = false;
 
-        // 1. TIMING ENGINE (AUTOMATICALLY LAUNCHES ON EXPIRE)
+        // 1. TIMING ENGINE
         function updateTimer() {
             const now = new Date().getTime();
             const distance = targetTime.getTime() - now;
@@ -318,9 +316,8 @@
                 document.getElementById("timer").innerHTML = "EVENT LIVE!";
                 clearInterval(timerInterval);
                 
-                // If a standard player is currently logged in, force transition immediately
                 if (currentUser && currentUser !== ADMIN_USER) { // cite: User Summary
-                    showScreen('game-screen');
+                    navigateTo('/game');
                 }
                 return;
             }
@@ -335,15 +332,40 @@
         const timerInterval = setInterval(updateTimer, 1000);
         updateTimer();
 
-        // 2. INTERFACE NAVIGATION
-        window.showScreen = function(screenId) {
+        // 2. CLEAN URL ROUTER
+        window.navigateTo = function(path) {
+            window.history.pushState({}, "", path);
+            handleRouting();
+        }
+
+        function handleRouting() {
+            const path = window.location.pathname;
+            
+            // Hide all screens initially
             ['countdown-screen', 'auth-screen', 'game-screen', 'admin-screen'].forEach(id => {
                 document.getElementById(id).classList.add('hidden');
             });
-            document.getElementById(screenId).classList.remove('hidden');
-            if (screenId === 'game-screen') generateProblem();
-            if (screenId === 'admin-screen') listenToLeaderboard();
+
+            if (path === '/login') {
+                document.getElementById('auth-screen').classList.remove('hidden');
+            } else if (path === '/game') {
+                if (!currentUser) return navigateTo('/login');
+                document.getElementById('game-screen').classList.remove('hidden');
+                generateProblem();
+            } else if (path === '/admin') {
+                if (currentUser !== ADMIN_USER) return navigateTo('/login'); // cite: User Summary
+                document.getElementById('admin-screen').classList.remove('hidden');
+                listenToLeaderboard();
+            } else {
+                // Default fallback to /home map layout
+                document.getElementById('countdown-screen').classList.remove('hidden');
+            }
         }
+
+        // Catch browser back/forward navigation arrows
+        window.addEventListener('popstate', handleRouting);
+        // Run router on first load
+        handleRouting();
 
         window.toggleAuthMode = function() {
             isLoginMode = !isLoginMode;
@@ -351,7 +373,7 @@
             document.getElementById('auth-btn').innerText = isLoginMode ? "Login" : "Register & Join";
         }
 
-        // 3. SECURE AUTHENTICATION LOGIC
+        // 3. AUTHENTICATION LOGIC
         window.handleAuth = async function() {
             const user = document.getElementById('username').value.trim();
             const pass = document.getElementById('password').value;
@@ -360,7 +382,7 @@
 
             if (user === ADMIN_USER && pass === ADMIN_PASS) { // cite: User Summary
                 currentUser = ADMIN_USER; // cite: User Summary
-                return showScreen('admin-screen');
+                return navigateTo('/admin');
             }
 
             const dbRef = ref(db);
@@ -399,12 +421,12 @@
                 document.getElementById('score-val').innerText = score;
 
                 if (new Date() >= targetTime) {
-                    showScreen('game-screen');
+                    navigateTo('/game');
                 } else {
                     document.getElementById('user-status-msg').innerHTML = `Logged in as: <strong style="color:var(--success);">${currentUser}</strong>`;
                     document.getElementById('join-btn').classList.add('hidden');
                     document.getElementById('gear-btn').classList.remove('hidden');
-                    showScreen('countdown-screen');
+                    navigateTo('/home');
                 }
 
             } catch (error) {
@@ -483,17 +505,16 @@
             document.getElementById('join-btn').classList.remove('hidden');
             document.getElementById('gear-btn').classList.add('hidden');
             closeSettings();
-            showScreen('countdown-screen');
+            navigateTo('/home');
         }
 
         window.logoutAdmin = function() {
             currentUser = null;
-            showScreen('countdown-screen');
+            navigateTo('/home');
         }
 
-        // 5. MATH ENGINE (1x1 UP TO 12x12 RANGES WITH ANIMATIONS)
+        // 5. MATH ENGINE
         function generateProblem() {
-            // Random index from 1 to 12 inclusive
             const num1 = Math.floor(Math.random() * 12) + 1; 
             const num2 = Math.floor(Math.random() * 12) + 1; 
 
@@ -501,12 +522,14 @@
             currentCorrectAnswer = num1 * num2;
             
             const ansInput = document.getElementById('answer');
-            ansInput.value = '';
-            ansInput.focus();
+            if (ansInput) {
+                ansInput.value = '';
+                ansInput.focus();
+            }
         }
 
         window.checkAnswer = async function() {
-            if (isAnimationActive) return; // Prevent input spam during feedback frames
+            if (isAnimationActive) return; 
             
             const ansInput = document.getElementById('answer');
             const gameCard = document.getElementById('game-screen');
@@ -518,7 +541,6 @@
                 score++;
                 document.getElementById('score-val').innerText = score;
                 
-                // Trigger Correct Pop Animation
                 gameCard.classList.add('correct-pop');
                 setTimeout(() => {
                     gameCard.classList.remove('correct-pop');
@@ -528,7 +550,6 @@
 
                 await update(ref(db, 'players/' + currentUser), { score: score });
             } else {
-                // Trigger Wrong Shake Animation
                 ansInput.classList.add('wrong-shake');
                 setTimeout(() => {
                     ansInput.classList.remove('wrong-shake');
@@ -538,9 +559,12 @@
             }
         }
 
-        document.getElementById('answer').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') checkAnswer();
-        });
+        const ansInputEl = document.getElementById('answer');
+        if(ansInputEl) {
+            ansInputEl.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') checkAnswer();
+            });
+        }
 
         // 6. LEADERBOARD LISTENER
         function listenToLeaderboard() {
@@ -601,9 +625,12 @@
             generateSimProblem();
         }
 
-        document.getElementById('sim-answer').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') checkSimAnswer();
-        });
+        const simAnsEl = document.getElementById('sim-answer');
+        if(simAnsEl) {
+            simAnsEl.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') checkSimAnswer();
+            });
+        }
     </script>
 </body>
 </html>
