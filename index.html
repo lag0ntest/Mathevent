@@ -10,6 +10,7 @@
             --card-bg: #1e293b;
             --accent: #3b82f6;
             --success: #10b981;
+            --danger: #ef4444;
             --text: #f8fafc;
         }
 
@@ -33,6 +34,7 @@
             border-radius: 12px;
             box-shadow: 0 10px 25px rgba(0,0,0,0.3);
             text-align: center;
+            position: relative;
         }
 
         .hidden { display: none !important; }
@@ -42,7 +44,7 @@
         .timer {
             font-size: 2.5rem;
             font-weight: bold;
-            color: #ef4444;
+            color: var(--danger);
             margin: 20px 0;
             letter-spacing: 2px;
         }
@@ -114,16 +116,57 @@
             border: 2px dashed var(--accent);
             border-radius: 8px;
         }
+
+        /* Settings UI styles */
+        .settings-gear {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            background: none;
+            border: none;
+            color: #94a3b8;
+            padding: 0;
+            width: auto;
+            margin: 0;
+        }
+        .settings-gear:hover { color: white; background: none; }
+
+        .modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        .modal-content {
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
     </style>
 </head>
 <body>
 
     <!-- 1. COUNTDOWN SCREEN -->
     <div id="countdown-screen" class="container">
-        <h1>Event Starting Soon</h1>
-        <p>Prepare your scratch paper! The race begins in:</p>
-        <div id="timer" class="timer">00:28:00</div>
-        <button onclick="showScreen('auth-screen')">Pre-Register / Login</button>
+        <!-- Settings Gear button (Visible only when logged in) -->
+        <button id="gear-btn" class="settings-gear hidden" onclick="openSettings()">⚙️</button>
+
+        <h1 id="countdown-title">Event Starting Soon</h1>
+        
+        <!-- User Status Display -->
+        <p id="user-status-msg" style="color: #94a3b8;">Create an account or login below to lock in your spot.</p>
+        
+        <div id="timer" class="timer">00:00:00</div>
+        
+        <button id="join-btn" onclick="showScreen('auth-screen')">Pre-Register / Login</button>
     </div>
 
     <!-- 2. AUTHENTICATION SCREEN -->
@@ -135,6 +178,7 @@
         <p style="font-size: 0.9rem; color: #94a3b8; cursor: pointer; margin-top: 15px;" onclick="toggleAuthMode()">
             Already registered? Switch to Login
         </p>
+        <button onclick="showScreen('countdown-screen')" style="background: #475569; margin-top: 15px;">Back</button>
     </div>
 
     <!-- 3. GAMEPLAY SCREEN -->
@@ -161,15 +205,11 @@
                     <th>Score (Points)</th>
                 </tr>
             </thead>
-            <tbody id="admin-list">
-                <!-- Live data from database will go here -->
-            </tbody>
+            <tbody id="admin-list"></tbody>
         </table>
         
-        <!-- SANDBOX SIMULATOR WORKSPACE -->
         <div id="sandbox-workspace" class="sandbox-box hidden">
             <h3 style="color: var(--accent); margin-top: 0;">🛠️ Admin Gameplay Simulator</h3>
-            <p style="font-size: 0.9rem; color: #94a3b8;">Testing math mechanics without changing live tournament scores.</p>
             <div class="score-board" style="max-width: 300px; margin: 0 auto 15px auto;">
                 <span>Sim User: <strong>Admin_Test</strong></span>
                 <span>Sim Score: <strong id="sim-score-val" style="color: var(--success);">0</strong></span>
@@ -181,14 +221,38 @@
 
         <div class="admin-actions">
             <button id="test-btn" onclick="toggleSandbox()" style="background: var(--success);">⚡ Test Event Early (Simulate Gameplay)</button>
-            <button onclick="showScreen('countdown-screen')" style="background: #475569;">Back to Main Screen</button>
+            <button onclick="logoutAdmin()" style="background: var(--danger);">Log Out Admin</button>
+        </div>
+    </div>
+
+    <!-- 5. SETTINGS MODAL POPUP -->
+    <div id="settings-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2 style="margin-top: 0; color: var(--accent);">Settings</h2>
+            
+            <!-- One Time Edit Workspace Container -->
+            <div id="one-time-edit-container">
+                <p style="font-size: 0.85rem; color: #ef4444; font-weight: bold; margin-bottom: 5px;">⚠️ PROFILE UPDATE (ONE-TIME USE ONLY):</p>
+                <input type="text" id="edit-username" placeholder="New Username">
+                <input type="password" id="edit-password" placeholder="New Password">
+                <button onclick="updateProfileData()" style="background: var(--success); margin-bottom: 15px;">Update Profile Details</button>
+                <hr style="border-color: #475569; margin: 15px 0;">
+            </div>
+
+            <!-- Lock Message (Replaces the inputs once used up) -->
+            <div id="edit-locked-msg" class="hidden">
+                <p style="color: #94a3b8; font-size: 0.9rem; margin-bottom: 20px;">🔒 Profile updates have been used up for this account.</p>
+            </div>
+
+            <button onclick="handleUserLogout()" style="background: var(--danger);">🚪 Log Out</button>
+            <button onclick="closeSettings()" style="background: #475569; margin-top: 10px;">Close</button>
         </div>
     </div>
 
     <!-- FIREBASE MODULES -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, set, onValue, update, get, child } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getDatabase, ref, set, onValue, update, get, child, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDeuqiNAi9-txcC4yToqnaM26S22seOuJI",
@@ -203,7 +267,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        const ADMIN_USER = "Lag0n";
+        const ADMIN_USER = "Lag0n"; // cite: User Summary
         const ADMIN_PASS = "Lag0nadmin145";
 
         let targetTime = new Date();
@@ -214,7 +278,6 @@
         let currentCorrectAnswer = 0;
         let isLoginMode = false;
 
-        // Simulator specific memory variables
         let simScore = 0;
         let simCorrectAnswer = 0;
 
@@ -240,7 +303,7 @@
         const timerInterval = setInterval(updateTimer, 1000);
         updateTimer();
 
-        // 2. INTERFACE NAV
+        // 2. INTERFACE NAVIGATION
         window.showScreen = function(screenId) {
             ['countdown-screen', 'auth-screen', 'game-screen', 'admin-screen'].forEach(id => {
                 document.getElementById(id).classList.add('hidden');
@@ -256,15 +319,15 @@
             document.getElementById('auth-btn').innerText = isLoginMode ? "Login" : "Register & Join";
         }
 
-        // 3. DATABASE AUTH LOGIC
+        // 3. SECURE AUTHENTICATION LOGIC
         window.handleAuth = async function() {
             const user = document.getElementById('username').value.trim();
             const pass = document.getElementById('password').value;
 
             if (!user || !pass) return alert("Please fill out all fields.");
 
-            if (user === ADMIN_USER && pass === ADMIN_PASS) {
-                currentUser = ADMIN_USER;
+            if (user === ADMIN_USER && pass === ADMIN_PASS) { // cite: User Summary
+                currentUser = ADMIN_USER; // cite: User Summary
                 return showScreen('admin-screen');
             }
 
@@ -292,20 +355,25 @@
                         await set(ref(db, 'players/' + user), {
                             username: user,
                             password: pass,
-                            score: 0
+                            score: 0,
+                            hasEdited: false
                         });
                         currentUser = user;
                         score = 0;
                     }
                 }
 
+                // Apply changes to the state to show username cleanly on countdown
                 document.getElementById('player-name').innerText = currentUser;
                 document.getElementById('score-val').innerText = score;
 
                 if (new Date() >= targetTime) {
                     showScreen('game-screen');
                 } else {
-                    alert("Registered! Waiting for 11:30 AM launch.");
+                    // Update layout elements to match login state
+                    document.getElementById('user-status-msg').innerHTML = `Logged in as: <strong style="color:var(--success);">${currentUser}</strong>`;
+                    document.getElementById('join-btn').classList.add('hidden');
+                    document.getElementById('gear-btn').classList.remove('hidden');
                     showScreen('countdown-screen');
                 }
 
@@ -314,7 +382,89 @@
             }
         }
 
-        // 4. TOURNAMENT MATH LOGIC ENGINE (STRICT MULTIPLICATION)
+        // 4. MODAL MANAGEMENT & ACCOUNT MODIFICATIONS
+        window.openSettings = async function() {
+            try {
+                const snapshot = await get(ref(db, `players/${currentUser}`));
+                if(snapshot.exists()) {
+                    const data = snapshot.val();
+                    
+                    if (data.hasEdited === true) {
+                        document.getElementById('one-time-edit-container').classList.add('hidden');
+                        document.getElementById('edit-locked-msg').classList.remove('hidden');
+                    } else {
+                        document.getElementById('one-time-edit-container').classList.remove('hidden');
+                        document.getElementById('edit-locked-msg').classList.add('hidden');
+                        document.getElementById('edit-username').value = data.username;
+                        document.getElementById('edit-password').value = data.password;
+                    }
+                }
+                document.getElementById('settings-modal').classList.remove('hidden');
+            } catch (e) {
+                alert("Error loading settings");
+            }
+        }
+
+        window.closeSettings = function() {
+            document.getElementById('settings-modal').classList.add('hidden');
+        }
+
+        window.updateProfileData = async function() {
+            const newU = document.getElementById('edit-username').value.trim();
+            const newP = document.getElementById('edit-password').value;
+
+            if(!newU || !newP) return alert("Fields cannot be blank.");
+            if(newU === ADMIN_USER) return alert("Invalid username selection."); // cite: User Summary
+
+            try {
+                // If the username is changing, verify availability and migrate the data path
+                if (newU !== currentUser) {
+                    const checkSnap = await get(ref(db, `players/${newU}`));
+                    if (checkSnap.exists()) return alert("That username is already taken!");
+
+                    // Remove old record path, write new record path
+                    await remove(ref(db, `players/${currentUser}`));
+                    await set(ref(db, `players/${newU}`), {
+                        username: newU,
+                        password: newP,
+                        score: score,
+                        hasEdited: true
+                    });
+                } else {
+                    // Updating password only on the same node path
+                    await update(ref(db, `players/${currentUser}`), {
+                        password: newP,
+                        hasEdited: true
+                    });
+                }
+
+                currentUser = newU;
+                document.getElementById('player-name').innerText = currentUser;
+                document.getElementById('user-status-msg').innerHTML = `Logged in as: <strong style="color:var(--success);">${currentUser}</strong>`;
+                
+                closeSettings();
+                alert("Profile successfully updated! Changes are locked in permanently.");
+            } catch (err) {
+                alert("Failed to modify database: " + err.message);
+            }
+        }
+
+        window.handleUserLogout = function() {
+            currentUser = null;
+            score = 0;
+            document.getElementById('user-status-msg').innerText = "Create an account or login below to lock in your spot.";
+            document.getElementById('join-btn').classList.remove('hidden');
+            document.getElementById('gear-btn').classList.add('hidden');
+            closeSettings();
+            showScreen('countdown-screen');
+        }
+
+        window.logoutAdmin = function() {
+            currentUser = null;
+            showScreen('countdown-screen');
+        }
+
+        // 5. TOURNAMENT GAMEPLAY ENGINE
         function generateProblem() {
             const num1 = Math.floor(Math.random() * 11) + 2; 
             const num2 = Math.floor(Math.random() * 11) + 2; 
@@ -340,10 +490,9 @@
             if (e.key === 'Enter') checkAnswer();
         });
 
-        // 5. LIVE ADMIN PANELS LISTENER
+        // 6. LEADERBOARD LISTENER
         function listenToLeaderboard() {
             const tbody = document.getElementById('admin-list');
-            
             onValue(ref(db, 'players'), (snapshot) => {
                 tbody.innerHTML = '';
                 const data = snapshot.val();
@@ -351,9 +500,7 @@
                     tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;">No players registered yet</td></tr>`;
                     return;
                 }
-
                 const players = Object.keys(data).map(key => data[key]).sort((a, b) => b.score - a.score);
-
                 players.forEach(p => {
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
@@ -366,15 +513,14 @@
             });
         }
 
-        // 6. ADMIN PLAYGROUND SIMULATOR LOGIC
+        // 7. DEV SANDBOX SIMULATOR WORKSPACE
         window.toggleSandbox = function() {
             const workspace = document.getElementById('sandbox-workspace');
             const testBtn = document.getElementById('test-btn');
-            
             if(workspace.classList.contains('hidden')) {
                 workspace.classList.remove('hidden');
                 testBtn.innerText = "❌ Close Sandbox Simulator";
-                testBtn.style.background = "#ef4444";
+                testBtn.style.background = "var(--danger)";
                 simScore = 0;
                 document.getElementById('sim-score-val').innerText = simScore;
                 generateSimProblem();
@@ -388,10 +534,8 @@
         function generateSimProblem() {
             const num1 = Math.floor(Math.random() * 11) + 2; 
             const num2 = Math.floor(Math.random() * 11) + 2; 
-
             document.getElementById('sim-problem').innerHTML = `${num1} &times; ${num2}`;
             simCorrectAnswer = num1 * num2;
-            
             document.getElementById('sim-answer').value = '';
             document.getElementById('sim-answer').focus();
         }
