@@ -104,6 +104,15 @@
             margin-top: 20px;
             display: flex;
             gap: 10px;
+            flex-direction: column;
+        }
+
+        .sandbox-box {
+            margin-top: 25px;
+            padding: 20px;
+            background: #0f172a;
+            border: 2px dashed var(--accent);
+            border-radius: 8px;
         }
     </style>
 </head>
@@ -157,9 +166,22 @@
             </tbody>
         </table>
         
+        <!-- SANDBOX SIMULATOR WORKSPACE -->
+        <div id="sandbox-workspace" class="sandbox-box hidden">
+            <h3 style="color: var(--accent); margin-top: 0;">🛠️ Admin Gameplay Simulator</h3>
+            <p style="font-size: 0.9rem; color: #94a3b8;">Testing math mechanics without changing live tournament scores.</p>
+            <div class="score-board" style="max-width: 300px; margin: 0 auto 15px auto;">
+                <span>Sim User: <strong>Admin_Test</strong></span>
+                <span>Sim Score: <strong id="sim-score-val" style="color: var(--success);">0</strong></span>
+            </div>
+            <div class="math-box" id="sim-problem" style="font-size: 2.2rem; margin: 15px 0;">5 &times; 5</div>
+            <input type="number" id="sim-answer" placeholder="Type answer..." autocomplete="off" style="max-width: 300px; display: inline-block;">
+            <button onclick="checkSimAnswer()" style="max-width: 300px; display: block; margin: 10px auto 0 auto;">Submit Answer</button>
+        </div>
+
         <div class="admin-actions">
-            <button onclick="testEventEarly()" style="background: var(--success);">⚡ Test Event Early (Force Start)</button>
-            <button onclick="showScreen('countdown-screen')" style="background: #475569;">Back to Main</button>
+            <button id="test-btn" onclick="toggleSandbox()" style="background: var(--success);">⚡ Test Event Early (Simulate Gameplay)</button>
+            <button onclick="showScreen('countdown-screen')" style="background: #475569;">Back to Main Screen</button>
         </div>
     </div>
 
@@ -168,7 +190,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, set, onValue, update, get, child } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // Your exact Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyDeuqiNAi9-txcC4yToqnaM26S22seOuJI",
             authDomain: "iqmathevent.firebaseapp.com",
@@ -179,15 +200,12 @@
             measurementId: "G-Y4Z0YMMNZW"
         };
 
-        // Initialize Firebase Realtime Database
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // Your custom Admin credentials
         const ADMIN_USER = "Lag0n";
         const ADMIN_PASS = "Lag0nadmin145";
 
-        // TARGET START TIME: 11:30 AM Today
         let targetTime = new Date();
         targetTime.setHours(11, 30, 0, 0);
 
@@ -195,14 +213,17 @@
         let score = 0;
         let currentCorrectAnswer = 0;
         let isLoginMode = false;
-        let eventForceStarted = false;
+
+        // Simulator specific memory variables
+        let simScore = 0;
+        let simCorrectAnswer = 0;
 
         // 1. TIMING ENGINE
         function updateTimer() {
             const now = new Date().getTime();
             const distance = targetTime.getTime() - now;
 
-            if (distance <= 0 || eventForceStarted) {
+            if (distance <= 0) {
                 document.getElementById("timer").innerHTML = "EVENT LIVE!";
                 clearInterval(timerInterval);
                 if (currentUser && currentUser !== ADMIN_USER) showScreen('game-screen');
@@ -235,14 +256,13 @@
             document.getElementById('auth-btn').innerText = isLoginMode ? "Login" : "Register & Join";
         }
 
-        // 3. DATABASE PURE USERNAME AUTH LOGIC
+        // 3. DATABASE AUTH LOGIC
         window.handleAuth = async function() {
             const user = document.getElementById('username').value.trim();
             const pass = document.getElementById('password').value;
 
             if (!user || !pass) return alert("Please fill out all fields.");
 
-            // Check if it's the Admin logging in
             if (user === ADMIN_USER && pass === ADMIN_PASS) {
                 currentUser = ADMIN_USER;
                 return showScreen('admin-screen');
@@ -254,7 +274,6 @@
                 const snapshot = await get(child(dbRef, `players/${user}`));
                 
                 if (isLoginMode) {
-                    // Login Mode
                     if (snapshot.exists()) {
                         const playerData = snapshot.val();
                         if (playerData.password === pass) {
@@ -264,14 +283,12 @@
                             return alert("Incorrect password!");
                         }
                     } else {
-                        return alert("Username does not exist! Please create an account.");
+                        return alert("Username does not exist!");
                     }
                 } else {
-                    // Registration Mode
                     if (snapshot.exists()) {
-                        return alert("Username is already taken! Please choose another one.");
+                        return alert("Username taken!");
                     } else {
-                        // Create user account straight in the Database root
                         await set(ref(db, 'players/' + user), {
                             username: user,
                             password: pass,
@@ -285,10 +302,10 @@
                 document.getElementById('player-name').innerText = currentUser;
                 document.getElementById('score-val').innerText = score;
 
-                if (new Date() >= targetTime || eventForceStarted) {
+                if (new Date() >= targetTime) {
                     showScreen('game-screen');
                 } else {
-                    alert("Account registered successfully! Waiting for event launch.");
+                    alert("Registered! Waiting for 11:30 AM launch.");
                     showScreen('countdown-screen');
                 }
 
@@ -297,10 +314,10 @@
             }
         }
 
-        // 4. MATH LOGIC ENGINE (STRICT MULTIPLICATION)
+        // 4. TOURNAMENT MATH LOGIC ENGINE (STRICT MULTIPLICATION)
         function generateProblem() {
-            const num1 = Math.floor(Math.random() * 11) + 2; // 2 to 12
-            const num2 = Math.floor(Math.random() * 11) + 2; // 2 to 12
+            const num1 = Math.floor(Math.random() * 11) + 2; 
+            const num2 = Math.floor(Math.random() * 11) + 2; 
 
             document.getElementById('problem').innerHTML = `${num1} &times; ${num2}`;
             currentCorrectAnswer = num1 * num2;
@@ -314,10 +331,7 @@
             if (userAns === currentCorrectAnswer) {
                 score++;
                 document.getElementById('score-val').innerText = score;
-                
-                await update(ref(db, 'players/' + currentUser), {
-                    score: score
-                });
+                await update(ref(db, 'players/' + currentUser), { score: score });
             }
             generateProblem();
         }
@@ -352,12 +366,48 @@
             });
         }
 
-        // 6. ADMIN FORCE START
-        window.testEventEarly = function() {
-            eventForceStarted = true;
-            alert("Dev Mode Enabled: Countdown bypassed. Users can now play right away!");
-            showScreen('countdown-screen');
+        // 6. ADMIN PLAYGROUND SIMULATOR LOGIC
+        window.toggleSandbox = function() {
+            const workspace = document.getElementById('sandbox-workspace');
+            const testBtn = document.getElementById('test-btn');
+            
+            if(workspace.classList.contains('hidden')) {
+                workspace.classList.remove('hidden');
+                testBtn.innerText = "❌ Close Sandbox Simulator";
+                testBtn.style.background = "#ef4444";
+                simScore = 0;
+                document.getElementById('sim-score-val').innerText = simScore;
+                generateSimProblem();
+            } else {
+                workspace.classList.add('hidden');
+                testBtn.innerText = "⚡ Test Event Early (Simulate Gameplay)";
+                testBtn.style.background = "var(--success)";
+            }
         }
+
+        function generateSimProblem() {
+            const num1 = Math.floor(Math.random() * 11) + 2; 
+            const num2 = Math.floor(Math.random() * 11) + 2; 
+
+            document.getElementById('sim-problem').innerHTML = `${num1} &times; ${num2}`;
+            simCorrectAnswer = num1 * num2;
+            
+            document.getElementById('sim-answer').value = '';
+            document.getElementById('sim-answer').focus();
+        }
+
+        window.checkSimAnswer = function() {
+            const userAns = parseInt(document.getElementById('sim-answer').value);
+            if (userAns === simCorrectAnswer) {
+                simScore++;
+                document.getElementById('sim-score-val').innerText = simScore;
+            }
+            generateSimProblem();
+        }
+
+        document.getElementById('sim-answer').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') checkSimAnswer();
+        });
     </script>
 </body>
 </html>
