@@ -263,16 +263,18 @@
                 <button onclick="adminSetState('countdown')" style="background: #475569; font-weight: bold; margin-top: 10px;">🔄 Reset to Active Countdown</button>
             </div>
 
+            <!-- ADJUSTED TO RELATIVE TIME INPUT TO SUPPORT UNLIMITED DURATIONS (E.G. 222 HOURS) -->
             <div class="admin-panel-card">
                 <h3 style="color: var(--warning); margin-top: 0;">📅 Schedule Configuration</h3>
-                <div style="display: flex; gap: 10px; align-items: center; margin-top: 10px;">
+                <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 5px;">Set a countdown length from right now. Supports any amount of hours.</p>
+                <div style="display: flex; gap: 10px; align-items: center; margin-top: 5px;">
                     <div style="flex: 1;">
-                        <label style="font-size: 0.75rem; font-weight: bold; color: #94a3b8; text-transform: uppercase;">Set Start Hour (24h)</label>
-                        <input type="number" id="sched-hour" min="0" max="23" value="11" style="margin: 5px 0;">
+                        <label style="font-size: 0.75rem; font-weight: bold; color: #94a3b8; text-transform: uppercase;">Hours from now</label>
+                        <input type="number" id="sched-hour" min="0" value="0" style="margin: 5px 0;">
                     </div>
                     <div style="flex: 1;">
-                        <label style="font-size: 0.75rem; font-weight: bold; color: #94a3b8; text-transform: uppercase;">Set Start Minute</label>
-                        <input type="number" id="sched-min" min="0" max="59" value="30" style="margin: 5px 0;">
+                        <label style="font-size: 0.75rem; font-weight: bold; color: #94a3b8; text-transform: uppercase;">Minutes from now</label>
+                        <input type="number" id="sched-min" min="0" value="30" style="margin: 5px 0;">
                     </div>
                 </div>
                 <button onclick="updateAdminSchedule()" style="background: var(--warning); color: #0f172a; margin-top: 5px;">💾 Broadcast New System Time</button>
@@ -344,8 +346,7 @@
         const ADMIN_PASS = "Lag0nadmin145";
 
         let currentSystemState = "countdown"; 
-        let targetHours = 11;
-        let targetMinutes = 30;
+        let absoluteTargetTimestamp = 0; 
 
         let currentUser = null;
         let score = 0;
@@ -358,13 +359,8 @@
             const data = snapshot.val();
             if (data) {
                 if (data.state) currentSystemState = data.state;
-                if (data.targetHour !== undefined) {
-                    targetHours = data.targetHour;
-                    document.getElementById('sched-hour').value = targetHours;
-                }
-                if (data.targetMin !== undefined) {
-                    targetMinutes = data.targetMin;
-                    document.getElementById('sched-min').value = targetMinutes;
+                if (data.targetTimestamp !== undefined) {
+                    absoluteTargetTimestamp = data.targetTimestamp;
                 }
                 
                 const badge = document.getElementById('global-status-badge');
@@ -379,7 +375,7 @@
             }
         });
 
-        // 2. FIXED TIMING SUBSYSTEM (Rolls over to next day if set target has passed)
+        // 2. ABSOLUTE MILLISECOND TIMING SUBSYSTEM (Handles any length of time perfectly)
         function runTimerTick() {
             if (currentSystemState === "live") {
                 document.getElementById("timer").innerHTML = "EVENT LIVE!";
@@ -391,18 +387,21 @@
                 return;
             }
 
-            const now = new Date();
-            const targetTime = new Date();
-            targetTime.setHours(targetHours, targetMinutes, 0, 0);
+            const now = new Date().getTime();
+            const distance = absoluteTargetTimestamp - now;
             
-            // FIX: If configured time has passed today, target that time tomorrow instead of breaking
-            if (targetTime <= now) {
-                targetTime.setDate(targetTime.getDate() + 1);
+            if (distance <= 0) {
+                document.getElementById("timer").innerHTML = "EVENT LIVE!";
+                document.getElementById("countdown-title").innerText = "Event Starting Soon";
+                if (currentUser && currentUser !== ADMIN_USER) {
+                    navigateTo('/game');
+                }
+                return;
             }
-            
-            const distance = targetTime.getTime() - now.getTime();
 
-            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            // Calculations supporting large offsets (e.g. multi-day durations like 222 hours)
+            const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)) + (days * 24);
             const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
             const seconds = Math.floor((distance % (1000 * 60)) / 1000);
 
@@ -509,14 +508,24 @@
             } catch (e) { alert("State modification failed."); }
         }
 
+        // ACCEPTS ANY INTEGER VALUE FOR HOURS AND MINUTES FROM CURRENT TIME
         window.updateAdminSchedule = async function() {
-            const h = parseInt(document.getElementById('sched-hour').value);
-            const m = parseInt(document.getElementById('sched-min').value);
-            if (isNaN(h) || h < 0 || h > 23 || isNaN(m) || m < 0 || m > 59) return alert("Invalid timeframe ranges.");
+            const inputHours = parseInt(document.getElementById('sched-hour').value);
+            const inputMinutes = parseInt(document.getElementById('sched-min').value);
+            
+            if (isNaN(inputHours) || inputHours < 0 || isNaN(inputMinutes) || inputMinutes < 0) {
+                return alert("Please enter valid positive numbers for hours/minutes.");
+            }
+            
+            // Calculate exact milliseconds forward from right now
+            const totalMsOffset = (inputHours * 60 * 60 * 1000) + (inputMinutes * 60 * 1000);
+            const calculatedFutureTarget = new Date().getTime() + totalMsOffset;
             
             try {
-                await update(ref(db, 'system_config'), { targetHour: h, targetMin: m });
-                alert("New time constraints deployed successfully!");
+                await update(ref(db, 'system_config'), { 
+                    targetTimestamp: calculatedFutureTarget 
+                });
+                alert("New countdown length successfully broadcasted to all users!");
             } catch (e) { alert("Schedule configuration failed."); }
         }
 
