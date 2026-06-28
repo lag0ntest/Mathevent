@@ -88,7 +88,6 @@
             font-size: 1.1rem;
         }
 
-        /* Admin Dashboard Layout */
         .admin-table {
             width: 100%;
             border-collapse: collapse;
@@ -118,7 +117,7 @@
         <input type="text" id="username" placeholder="Choose Username" required>
         <input type="password" id="password" placeholder="Choose Password" required>
         <button id="auth-btn" onclick="handleAuth()">Register & Join</button>
-        <p style="font-size: 0.9rem; color: #94a3b8; cursor: pointer;" onclick="toggleAuthMode()">
+        <p style="font-size: 0.9rem; color: #94a3b8; cursor: pointer; margin-top: 15px;" onclick="toggleAuthMode()">
             Already registered? Switch to Login
         </p>
     </div>
@@ -144,25 +143,42 @@
                 <tr>
                     <th>Username</th>
                     <th>Score</th>
-                    <th>Status</th>
                 </tr>
             </thead>
             <tbody id="admin-list">
-                <!-- Injected via JavaScript -->
+                <!-- Live data from database will go here -->
             </tbody>
         </table>
-        <button onclick="showScreen('countdown-screen')" style="background: #475569;">Back to Main</button>
+        <button onclick="showScreen('countdown-screen')" style="background: #475569; margin-top: 20px;">Back to Main</button>
     </div>
 
-    <script>
-        // CONFIGURATION
-        const CONFIG = {
-            apiKey: "YOUR_GOOGLE_API_KEY", // Replace with your Google API Key
-            spreadsheetId: "YOUR_SPREADSHEET_ID", // Replace with your Sheet ID
-            adminPassword: "MathAdmin2026!" // Set a password to access the panel
+    <!-- FIREBASE MODULES -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        // Your exact Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDeuqiNAi9-txcC4yToqnaM26S22seOuJI",
+            authDomain: "iqmathevent.firebaseapp.com",
+            projectId: "iqmathevent",
+            storageBucket: "iqmathevent.firebasestorage.app",
+            messagingSenderId: "1036883993320",
+            appId: "1:1036883993320:web:ab4213f6297793a58a5f5d",
+            measurementId: "G-Y4Z0YMMNZW"
         };
 
-        // TARGET START TIME: Today at 11:30 AM
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+
+        // Your custom Admin credentials
+        const ADMIN_USER = "Lag0n";
+        const ADMIN_PASS = "Lag0nadmin145";
+
+        // TARGET START TIME: 11:30 AM Today
         const targetTime = new Date();
         targetTime.setHours(11, 30, 0, 0);
 
@@ -171,10 +187,7 @@
         let currentCorrectAnswer = 0;
         let isLoginMode = false;
 
-        // Local Storage Mock Database Fallback (Works instantly without Google Sheets configured)
-        let localDB = JSON.parse(localStorage.getItem('math_event_db')) || { users: {} };
-
-        // 1. COUNTDOWN ENGINE
+        // 1. TIMING ENGINE
         function updateTimer() {
             const now = new Date().getTime();
             const distance = targetTime.getTime() - now;
@@ -182,7 +195,7 @@
             if (distance <= 0) {
                 document.getElementById("timer").innerHTML = "EVENT LIVE!";
                 clearInterval(timerInterval);
-                if(currentUser) showScreen('game-screen');
+                if (currentUser && currentUser !== ADMIN_USER) showScreen('game-screen');
                 return;
             }
 
@@ -196,67 +209,79 @@
         const timerInterval = setInterval(updateTimer, 1000);
         updateTimer();
 
-        // 2. UI NAVIGATION
-        function showScreen(screenId) {
+        // 2. INTERFACE NAV
+        window.showScreen = function(screenId) {
             ['countdown-screen', 'auth-screen', 'game-screen', 'admin-screen'].forEach(id => {
                 document.getElementById(id).classList.add('hidden');
             });
             document.getElementById(screenId).classList.remove('hidden');
-            if(screenId === 'game-screen') generateProblem();
-            if(screenId === 'admin-screen') renderAdminPanel();
+            if (screenId === 'game-screen') generateProblem();
+            if (screenId === 'admin-screen') listenToLeaderboard();
         }
 
-        function toggleAuthMode() {
+        window.toggleAuthMode = function() {
             isLoginMode = !isLoginMode;
             document.getElementById('auth-title').innerText = isLoginMode ? "Login to Event" : "Create Account";
             document.getElementById('auth-btn').innerText = isLoginMode ? "Login" : "Register & Join";
         }
 
-        // 3. AUTHENTICATION & DATABASE ENGINE
-        function handleAuth() {
+        // 3. FIREBASE AUTH LOGIC
+        window.handleAuth = async function() {
             const user = document.getElementById('username').value.trim();
             const pass = document.getElementById('password').value;
 
-            if(!user || !pass) return alert("Fill out all fields");
+            if (!user || !pass) return alert("Please fill out all fields.");
 
-            // Secret Admin Hook
-            if (user.toLowerCase() === 'admin' && pass === CONFIG.adminPassword) {
+            // Check if it's the Admin logging in
+            if (user === ADMIN_USER && pass === ADMIN_PASS) {
+                currentUser = ADMIN_USER;
                 return showScreen('admin-screen');
             }
 
-            if (isLoginMode) {
-                if (localDB.users[user] && localDB.users[user].password === pass) {
+            // Standardize username format for Firebase
+            const syntheticEmail = `${user.toLowerCase()}@iqmathevent.com`;
+
+            try {
+                if (isLoginMode) {
+                    // Sign In
+                    await signInWithEmailAndPassword(auth, syntheticEmail, pass);
                     currentUser = user;
-                    score = localDB.users[user].score;
+                    
+                    // Fetch existing score
+                    onValue(ref(db, 'players/' + user), (snapshot) => {
+                        const data = snapshot.val();
+                        score = data ? (data.score || 0) : 0;
+                        document.getElementById('score-val').innerText = score;
+                    }, { onlyOnce: true });
+
                 } else {
-                    return alert("Invalid credentials.");
+                    // Sign Up
+                    await createUserWithEmailAndPassword(auth, syntheticEmail, pass);
+                    currentUser = user;
+                    score = 0;
+                    // Initialize player record in Realtime Database
+                    await set(ref(db, 'players/' + user), {
+                        username: user,
+                        score: 0
+                    });
                 }
-            } else {
-                if (localDB.users[user]) return alert("Username already taken.");
-                localDB.users[user] = { password: pass, score: 0, status: 'Registered' };
-                currentUser = user;
-                score = 0;
-                saveData();
-            }
 
-            document.getElementById('player-name').innerText = currentUser;
-            document.getElementById('score-val').innerText = score;
+                document.getElementById('player-name').innerText = currentUser;
+                document.getElementById('score-val').innerText = score;
 
-            // Direct route based on timing
-            if (new Date() >= targetTime) {
-                showScreen('game-screen');
-            } else {
-                alert("Registration successful! Waiting for 11:30 AM startup.");
-                showScreen('countdown-screen');
+                if (new Date() >= targetTime) {
+                    showScreen('game-screen');
+                } else {
+                    alert("Account ready! Waiting for event launch at 11:30 AM.");
+                    showScreen('countdown-screen');
+                }
+
+            } catch (error) {
+                alert(error.message);
             }
         }
 
-        function saveData() {
-            localStorage.setItem('math_event_db', JSON.stringify(localDB));
-            // Optional: Insert Google Sheets fetch/append request here using CONFIG.apiKey
-        }
-
-        // 4. MATH LOGIC ENGINE
+        // 4. MATH LOGIC
         function generateProblem() {
             const num1 = Math.floor(Math.random() * 12) + 2;
             const num2 = Math.floor(Math.random() * 12) + 2;
@@ -265,53 +290,56 @@
 
             document.getElementById('problem').innerText = `${num1} ${op} ${num2}`;
             
-            if(op === '+') currentCorrectAnswer = num1 + num2;
-            if(op === '-') currentCorrectAnswer = num1 - num2;
-            if(op === '*') currentCorrectAnswer = num1 * num2;
+            if (op === '+') currentCorrectAnswer = num1 + num2;
+            if (op === '-') currentCorrectAnswer = num1 - num2;
+            if (op === '*') currentCorrectAnswer = num1 * num2;
             
             document.getElementById('answer').value = '';
             document.getElementById('answer').focus();
         }
 
-        function checkAnswer() {
+        window.checkAnswer = async function() {
             const userAns = parseInt(document.getElementById('answer').value);
-            if(userAns === currentCorrectAnswer) {
+            if (userAns === currentCorrectAnswer) {
                 score++;
                 document.getElementById('score-val').innerText = score;
-                localDB.users[currentUser].score = score;
-                localDB.users[currentUser].status = 'Active';
-                saveData();
+                
+                // Update live score in Firebase database
+                await update(ref(db, 'players/' + currentUser), {
+                    score: score
+                });
             }
             generateProblem();
         }
 
-        // Catch Enter key press in the input field
         document.getElementById('answer').addEventListener('keypress', (e) => {
-            if(e.key === 'Enter') checkAnswer();
+            if (e.key === 'Enter') checkAnswer();
         });
 
-        // 5. LIVE ADMIN PANELS
-        function renderAdminPanel() {
+        // 5. LIVE ADMIN PANELS LISTENER
+        function listenToLeaderboard() {
             const tbody = document.getElementById('admin-list');
-            tbody.innerHTML = '';
             
-            const players = Object.keys(localDB.users).map(username => ({
-                username,
-                ...localDB.users[username]
-            })).sort((a,b) => b.score - a.score);
+            // Listen live to the entire 'players' node in Firebase
+            onValue(ref(db, 'players'), (snapshot) => {
+                tbody.innerHTML = '';
+                const data = snapshot.val();
+                if (!data) {
+                    tbody.innerHTML = `<tr><td colspan="2" style="text-align:center;">No players active</td></tr>`;
+                    return;
+                }
 
-            if(players.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;">No players registered yet</td></tr>`;
-            }
+                // Map, sort by highest score, and display
+                const players = Object.keys(data).map(key => data[key]).sort((a, b) => b.score - a.score);
 
-            players.forEach(p => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${p.username}</td>
-                    <td style="font-weight:bold; color:var(--success);">${p.score}</td>
-                    <td>${p.status}</td>
-                `;
-                tbody.appendChild(tr);
+                players.forEach(p => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${p.username}</td>
+                        <td style="font-weight:bold; color:var(--success);">${p.score}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
             });
         }
     </script>
