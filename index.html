@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speed Math Championship</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --accent: #3b82f6;
+            --success: #10b981;
+            --text: #f8fafc;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+
+        .hidden { display: none !important; }
+
+        h1 { color: var(--accent); margin-bottom: 10px; }
+        
+        .timer {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #ef4444;
+            margin: 20px 0;
+            letter-spacing: 2px;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 6px;
+            border: 1px solid #475569;
+            background: #0f172a;
+            color: white;
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: var(--accent);
+            border: none;
+            color: white;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 10px;
+            transition: background 0.2s;
+        }
+
+        button:hover { background: #2563eb; }
+        
+        .math-box {
+            font-size: 3rem;
+            margin: 30px 0;
+            font-weight: bold;
+        }
+
+        .score-board {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            font-size: 1.1rem;
+        }
+
+        /* Admin Dashboard Layout */
+        .admin-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .admin-table th, .admin-table td {
+            padding: 10px;
+            border: 1px solid #475569;
+            text-align: left;
+        }
+        .admin-table th { background: #334155; }
+    </style>
+</head>
+<body>
+
+    <!-- 1. COUNTDOWN SCREEN -->
+    <div id="countdown-screen" class="container">
+        <h1>Event Starting Soon</h1>
+        <p>Prepare your scratch paper! The race begins in:</p>
+        <div id="timer" class="timer">00:28:00</div>
+        <button onclick="showScreen('auth-screen')">Pre-Register / Login</button>
+    </div>
+
+    <!-- 2. AUTHENTICATION SCREEN -->
+    <div id="auth-screen" class="container hidden">
+        <h1 id="auth-title">Create Account</h1>
+        <input type="text" id="username" placeholder="Choose Username" required>
+        <input type="password" id="password" placeholder="Choose Password" required>
+        <button id="auth-btn" onclick="handleAuth()">Register & Join</button>
+        <p style="font-size: 0.9rem; color: #94a3b8; cursor: pointer;" onclick="toggleAuthMode()">
+            Already registered? Switch to Login
+        </p>
+    </div>
+
+    <!-- 3. GAMEPLAY SCREEN -->
+    <div id="game-screen" class="container hidden">
+        <div class="score-board">
+            <span>User: <strong id="player-name">---</strong></span>
+            <span>Score: <strong id="score-val">0</strong></span>
+        </div>
+        <hr style="border-color: #475569;">
+        <div class="math-box" id="problem">2 + 2</div>
+        <input type="number" id="answer" placeholder="Your answer..." autocomplete="off">
+        <button onclick="checkAnswer()">Submit</button>
+    </div>
+
+    <!-- 4. ADMIN DASHBOARD -->
+    <div id="admin-screen" class="container hidden" style="max-width: 700px;">
+        <h1>Admin Control Panel</h1>
+        <p>Live Competitor Tracking</p>
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Username</th>
+                    <th>Score</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="admin-list">
+                <!-- Injected via JavaScript -->
+            </tbody>
+        </table>
+        <button onclick="showScreen('countdown-screen')" style="background: #475569;">Back to Main</button>
+    </div>
+
+    <script>
+        // CONFIGURATION
+        const CONFIG = {
+            apiKey: "YOUR_GOOGLE_API_KEY", // Replace with your Google API Key
+            spreadsheetId: "YOUR_SPREADSHEET_ID", // Replace with your Sheet ID
+            adminPassword: "MathAdmin2026!" // Set a password to access the panel
+        };
+
+        // TARGET START TIME: Today at 11:30 AM
+        const targetTime = new Date();
+        targetTime.setHours(11, 30, 0, 0);
+
+        let currentUser = null;
+        let score = 0;
+        let currentCorrectAnswer = 0;
+        let isLoginMode = false;
+
+        // Local Storage Mock Database Fallback (Works instantly without Google Sheets configured)
+        let localDB = JSON.parse(localStorage.getItem('math_event_db')) || { users: {} };
+
+        // 1. COUNTDOWN ENGINE
+        function updateTimer() {
+            const now = new Date().getTime();
+            const distance = targetTime.getTime() - now;
+
+            if (distance <= 0) {
+                document.getElementById("timer").innerHTML = "EVENT LIVE!";
+                clearInterval(timerInterval);
+                if(currentUser) showScreen('game-screen');
+                return;
+            }
+
+            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+            document.getElementById("timer").innerHTML = 
+                `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+        const timerInterval = setInterval(updateTimer, 1000);
+        updateTimer();
+
+        // 2. UI NAVIGATION
+        function showScreen(screenId) {
+            ['countdown-screen', 'auth-screen', 'game-screen', 'admin-screen'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+            });
+            document.getElementById(screenId).classList.remove('hidden');
+            if(screenId === 'game-screen') generateProblem();
+            if(screenId === 'admin-screen') renderAdminPanel();
+        }
+
+        function toggleAuthMode() {
+            isLoginMode = !isLoginMode;
+            document.getElementById('auth-title').innerText = isLoginMode ? "Login to Event" : "Create Account";
+            document.getElementById('auth-btn').innerText = isLoginMode ? "Login" : "Register & Join";
+        }
+
+        // 3. AUTHENTICATION & DATABASE ENGINE
+        function handleAuth() {
+            const user = document.getElementById('username').value.trim();
+            const pass = document.getElementById('password').value;
+
+            if(!user || !pass) return alert("Fill out all fields");
+
+            // Secret Admin Hook
+            if (user.toLowerCase() === 'admin' && pass === CONFIG.adminPassword) {
+                return showScreen('admin-screen');
+            }
+
+            if (isLoginMode) {
+                if (localDB.users[user] && localDB.users[user].password === pass) {
+                    currentUser = user;
+                    score = localDB.users[user].score;
+                } else {
+                    return alert("Invalid credentials.");
+                }
+            } else {
+                if (localDB.users[user]) return alert("Username already taken.");
+                localDB.users[user] = { password: pass, score: 0, status: 'Registered' };
+                currentUser = user;
+                score = 0;
+                saveData();
+            }
+
+            document.getElementById('player-name').innerText = currentUser;
+            document.getElementById('score-val').innerText = score;
+
+            // Direct route based on timing
+            if (new Date() >= targetTime) {
+                showScreen('game-screen');
+            } else {
+                alert("Registration successful! Waiting for 11:30 AM startup.");
+                showScreen('countdown-screen');
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('math_event_db', JSON.stringify(localDB));
+            // Optional: Insert Google Sheets fetch/append request here using CONFIG.apiKey
+        }
+
+        // 4. MATH LOGIC ENGINE
+        function generateProblem() {
+            const num1 = Math.floor(Math.random() * 12) + 2;
+            const num2 = Math.floor(Math.random() * 12) + 2;
+            const ops = ['+', '-', '*'];
+            const op = ops[Math.floor(Math.random() * ops.length)];
+
+            document.getElementById('problem').innerText = `${num1} ${op} ${num2}`;
+            
+            if(op === '+') currentCorrectAnswer = num1 + num2;
+            if(op === '-') currentCorrectAnswer = num1 - num2;
+            if(op === '*') currentCorrectAnswer = num1 * num2;
+            
+            document.getElementById('answer').value = '';
+            document.getElementById('answer').focus();
+        }
+
+        function checkAnswer() {
+            const userAns = parseInt(document.getElementById('answer').value);
+            if(userAns === currentCorrectAnswer) {
+                score++;
+                document.getElementById('score-val').innerText = score;
+                localDB.users[currentUser].score = score;
+                localDB.users[currentUser].status = 'Active';
+                saveData();
+            }
+            generateProblem();
+        }
+
+        // Catch Enter key press in the input field
+        document.getElementById('answer').addEventListener('keypress', (e) => {
+            if(e.key === 'Enter') checkAnswer();
+        });
+
+        // 5. LIVE ADMIN PANELS
+        function renderAdminPanel() {
+            const tbody = document.getElementById('admin-list');
+            tbody.innerHTML = '';
+            
+            const players = Object.keys(localDB.users).map(username => ({
+                username,
+                ...localDB.users[username]
+            })).sort((a,b) => b.score - a.score);
+
+            if(players.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;">No players registered yet</td></tr>`;
+            }
+
+            players.forEach(p => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${p.username}</td>
+                    <td style="font-weight:bold; color:var(--success);">${p.score}</td>
+                    <td>${p.status}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+    </script>
+</body>
+</html>
