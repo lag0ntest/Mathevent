@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Speed Math Championship</title>
+    <title>Blook Guessing Championship</title>
     <style>
         :root {
             --bg-color: #0f172a;
@@ -102,11 +102,19 @@
             overflow: hidden;
         }
 
-        .math-box {
-            font-size: 4.5rem;
-            margin: 40px 0;
-            font-weight: 900;
-            letter-spacing: 1px;
+        .blook-box {
+            margin: 30px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 180px;
+        }
+
+        .blook-image {
+            width: 150px;
+            height: 150px;
+            object-fit: contain;
+            filter: drop-shadow(0 8px 16px rgba(0,0,0,0.4));
         }
 
         .score-board {
@@ -127,7 +135,7 @@
             justify-content: center;
             align-items: center;
             font-size: 8rem;
-            background: rgba(15, 23, 42, 0.7);
+            background: rgba(15, 23, 42, 0.85);
             z-index: 10;
             opacity: 0;
             pointer-events: none;
@@ -212,7 +220,7 @@
     <!-- 1. COUNTDOWN SCREEN -->
     <div id="countdown-screen" class="container">
         <button id="gear-btn" class="settings-gear hidden" onclick="openSettings()">⚙️</button>
-        <h1 id="countdown-title">Event Starting Soon</h1>
+        <h1 id="countdown-title">Blook Arena Starting Soon</h1>
         <p id="user-status-msg" style="color: #94a3b8;">Create an account or login below to lock in your spot.</p>
         <div id="timer" class="timer">00:00:00</div>
         <button id="join-btn" onclick="navigateTo('/login')">Pre-Register / Login</button>
@@ -237,9 +245,11 @@
             <span>Competitor: <strong id="player-name" style="color: var(--accent);">---</strong></span>
             <span>Score: <strong id="score-val" style="color: var(--success);">0</strong></span>
         </div>
-        <div class="math-box" id="problem">1 &times; 1</div>
-        <input type="number" id="answer" placeholder="Type answer and press Enter..." autocomplete="off">
-        <button id="submit-btn" onclick="checkAnswer()" style="background: var(--success); padding: 15px; font-size: 1.1rem;">Submit Answer</button>
+        <div class="blook-box">
+            <img id="blook-display" class="blook-image" src="" alt="Guess the Blook">
+        </div>
+        <input type="text" id="answer" placeholder="Type Blook name and press Enter..." autocomplete="off">
+        <button id="submit-btn" onclick="checkAnswer()" style="background: var(--success); padding: 15px; font-size: 1.1rem;">Submit Guess</button>
     </div>
 
     <!-- 4. ADMIN CONTROL PANEL -->
@@ -263,7 +273,6 @@
                 <button onclick="adminSetState('countdown')" style="background: #475569; font-weight: bold; margin-top: 10px;">🔄 Reset to Active Countdown</button>
             </div>
 
-            <!-- ADJUSTED TO RELATIVE TIME INPUT TO SUPPORT UNLIMITED DURATIONS (E.G. 222 HOURS) -->
             <div class="admin-panel-card">
                 <h3 style="color: var(--warning); margin-top: 0;">📅 Schedule Configuration</h3>
                 <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 5px;">Set a countdown length from right now. Supports any amount of hours.</p>
@@ -350,9 +359,25 @@
 
         let currentUser = null;
         let score = 0;
-        let currentCorrectAnswer = 0;
+        let currentBlookAnswer = "";
         let isLoginMode = false;
         let isLockoutActive = false;
+
+        // Blooket Asset Resources Dataset
+        const BLOOK_DATASET = [
+            { name: "buccaneer", url: "https://ac.blooket.com/marketassets/blooks/buccaneer.svg" },
+            { name: "two of spades", url: "https://ac.blooket.com/marketassets/blooks/twoofspades.svg" },
+            { name: "dino fossil", url: "https://ac.blooket.com/marketassets/blooks/dinofossil.svg" },
+            { name: "jester", url: "https://ac.blooket.com/marketassets/blooks/jester.svg" },
+            { name: "sloth", url: "https://ac.blooket.com/marketassets/blooks/sloth.svg" },
+            { name: "elephant", url: "https://ac.blooket.com/marketassets/blooks/elephant.svg" },
+            { name: "unicorn", url: "https://ac.blooket.com/marketassets/blooks/unicorn.svg" },
+            { name: "baby shark", url: "https://ac.blooket.com/marketassets/blooks/babyshark.svg" },
+            { name: "wizard", url: "https://ac.blooket.com/marketassets/blooks/wizard.svg" },
+            { name: "buddy bot", url: "https://ac.blooket.com/marketassets/blooks/buddybot.svg" },
+            { name: "megalodon", url: "https://ac.blooket.com/marketassets/blooks/megalodon.svg" },
+            { name: "tyrannosaurus rex", url: "https://ac.blooket.com/marketassets/blooks/tyrannosaurusrex.svg" }
+        ];
 
         // 1. DYNAMIC STATE WATCHER
         onValue(ref(db, 'system_config'), (snapshot) => {
@@ -375,10 +400,10 @@
             }
         });
 
-        // 2. ABSOLUTE MILLISECOND TIMING SUBSYSTEM (Handles any length of time perfectly)
+        // 2. ABSOLUTE MILLISECOND TIMING SUBSYSTEM
         function runTimerTick() {
             if (currentSystemState === "live") {
-                document.getElementById("timer").innerHTML = "EVENT LIVE!";
+                document.getElementById("timer").innerHTML = "ARENA LIVE!";
                 return;
             }
             if (currentSystemState === "over") {
@@ -391,15 +416,14 @@
             const distance = absoluteTargetTimestamp - now;
             
             if (distance <= 0) {
-                document.getElementById("timer").innerHTML = "EVENT LIVE!";
-                document.getElementById("countdown-title").innerText = "Event Starting Soon";
+                document.getElementById("timer").innerHTML = "ARENA LIVE!";
+                document.getElementById("countdown-title").innerText = "Blook Arena Starting Soon";
                 if (currentUser && currentUser !== ADMIN_USER) {
                     navigateTo('/game');
                 }
                 return;
             }
 
-            // Calculations supporting large offsets (e.g. multi-day durations like 222 hours)
             const days = Math.floor(distance / (1000 * 60 * 60 * 24));
             const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)) + (days * 24);
             const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
@@ -407,7 +431,7 @@
 
             document.getElementById("timer").innerHTML = 
                 `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-            document.getElementById("countdown-title").innerText = "Event Starting Soon";
+            document.getElementById("countdown-title").innerText = "Blook Arena Starting Soon";
         }
         setInterval(runTimerTick, 1000);
 
@@ -421,7 +445,7 @@
             const path = window.location.pathname;
             
             if (currentSystemState === "live" && currentUser && currentUser !== ADMIN_USER && path !== '/game') {
-                window.history.pushState({}, "", '/game');
+                window.history.history.pushState({}, "", '/game');
                 return evaluateActiveUIRoute();
             }
             if (currentSystemState === "over" && currentUser && currentUser !== ADMIN_USER && path === '/game') {
@@ -508,7 +532,6 @@
             } catch (e) { alert("State modification failed."); }
         }
 
-        // ACCEPTS ANY INTEGER VALUE FOR HOURS AND MINUTES FROM CURRENT TIME
         window.updateAdminSchedule = async function() {
             const inputHours = parseInt(document.getElementById('sched-hour').value);
             const inputMinutes = parseInt(document.getElementById('sched-min').value);
@@ -517,7 +540,6 @@
                 return alert("Please enter valid positive numbers for hours/minutes.");
             }
             
-            // Calculate exact milliseconds forward from right now
             const totalMsOffset = (inputHours * 60 * 60 * 1000) + (inputMinutes * 60 * 1000);
             const calculatedFutureTarget = new Date().getTime() + totalMsOffset;
             
@@ -537,19 +559,19 @@
             }
         }
 
-        // 6. LIVE GAME ENGINE
+        // 6. LIVE GAME ENGINE (Blook Mode)
         function generateProblem() {
-            const num1 = Math.floor(Math.random() * 12) + 1; 
-            const num2 = Math.floor(Math.random() * 12) + 1; 
+            // Select a random Blook asset from the catalog array
+            const randomBlook = BLOOK_DATASET[Math.floor(Math.random() * BLOOK_DATASET.length)];
 
-            document.getElementById('problem').innerHTML = `${num1} &times; ${num2}`;
-            currentCorrectAnswer = num1 * num2;
+            document.getElementById('blook-display').src = randomBlook.url;
+            currentBlookAnswer = randomBlook.name;
             
             const ansInput = document.getElementById('answer');
             if (ansInput) {
                 ansInput.value = '';
                 ansInput.disabled = false;
-                ansInput.placeholder = "Type answer and press Enter...";
+                ansInput.placeholder = "Type Blook name and press Enter...";
                 ansInput.focus();
             }
             document.getElementById('submit-btn').disabled = false;
@@ -561,15 +583,19 @@
             const ansInput = document.getElementById('answer');
             const submitBtn = document.getElementById('submit-btn');
             const overlay = document.getElementById('feedback-layer');
-            const userAns = parseInt(ansInput.value);
+            const userAns = ansInput.value.trim().toLowerCase();
 
-            if (isNaN(userAns)) return;
+            if (userAns === "") return;
 
             isLockoutActive = true;
             ansInput.disabled = true;
             submitBtn.disabled = true;
 
-            if (userAns === currentCorrectAnswer) {
+            // Sanitize string and compare variations (e.g. "tyrannosaurusrex" vs "tyrannosaurus rex")
+            const formattedCorrectAnswer = currentBlookAnswer.replace(/\s+/g, '');
+            const formattedUserAnswer = userAns.replace(/\s+/g, '');
+
+            if (formattedUserAnswer === formattedCorrectAnswer || userAns === currentBlookAnswer) {
                 score++;
                 document.getElementById('score-val').innerText = score;
                 overlay.innerHTML = "✔️";
