@@ -3,16 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Blook Guessing Championship</title>
+    <title>Blook Guessing Arena</title>
     <style>
         :root {
-            --bg-color: #0f172a;
-            --card-bg: #1e293b;
+            --bg-color: #0b0f19;
+            --card-bg: #151f32;
+            --card-inner: #0f172a;
             --accent: #3b82f6;
             --success: #10b981;
             --danger: #ef4444;
             --warning: #f59e0b;
+            --purple: #8b5cf6;
             --text: #f8fafc;
+            --text-secondary: #94a3b8;
+            --border: #1e293b;
         }
 
         body {
@@ -29,92 +33,98 @@
 
         .container {
             width: 100%;
-            max-width: 500px;
+            max-width: 520px;
             background: var(--card-bg);
             padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
             text-align: center;
             position: relative;
-            transition: transform 0.1s ease;
+            box-sizing: border-box;
+            border: 1px solid var(--border);
         }
 
         .hidden { display: none !important; }
 
-        h1 { color: var(--accent); margin-bottom: 10px; }
+        h1 { color: var(--accent); margin-bottom: 8px; font-weight: 800; }
         h2 { margin-top: 0; color: #cbd5e1; }
         
         .timer {
-            font-size: 2.5rem;
-            font-weight: bold;
+            font-size: 2.8rem;
+            font-weight: 900;
             color: var(--danger);
-            margin: 20px 0;
+            margin: 15px 0;
             letter-spacing: 2px;
+            text-shadow: 0 0 15px rgba(239, 68, 68, 0.3);
         }
 
         input, select {
             width: 100%;
-            padding: 12px 15px;
+            padding: 14px 16px;
             margin: 10px 0;
-            border-radius: 8px;
-            border: 2px solid #475569;
-            background: #0f172a;
+            border-radius: 10px;
+            border: 2px solid var(--border);
+            background: var(--bg-color);
             color: white;
             box-sizing: border-box;
             font-size: 1.1rem;
             text-align: center;
-            transition: all 0.2s;
+            transition: all 0.2s ease;
         }
         input:focus, select:focus {
             border-color: var(--accent);
             outline: none;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
         }
         input:disabled {
-            background: #1e293b;
-            border-color: #334155;
-            color: #64748b;
+            background: var(--card-bg);
+            border-color: var(--border);
+            color: #475569;
             cursor: not-allowed;
         }
 
         button {
             width: 100%;
-            padding: 12px;
+            padding: 14px;
             background: var(--accent);
             border: none;
             color: white;
             font-weight: bold;
-            border-radius: 6px;
+            border-radius: 10px;
             cursor: pointer;
             font-size: 1rem;
             margin-top: 10px;
-            transition: background 0.2s, transform 0.1s;
+            transition: all 0.2s ease;
         }
-        button:hover { background: #2563eb; }
+        button:hover { background: #2563eb; transform: translateY(-1px); }
         button:active { transform: scale(0.98); }
         button:disabled {
             background: #334155;
+            color: #64748b;
             cursor: not-allowed;
+            transform: none;
         }
         
         .live-game-container {
-            max-width: 650px;
-            position: relative;
-            overflow: hidden;
+            max-width: 680px;
         }
 
         .blook-box {
-            margin: 30px 0;
+            margin: 25px 0;
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 180px;
+            min-height: 200px;
+            background: var(--bg-color);
+            border-radius: 12px;
+            border: 1px solid var(--border);
         }
 
         .blook-image {
-            width: 150px;
-            height: 150px;
+            width: 160px;
+            height: 160px;
             object-fit: contain;
-            filter: drop-shadow(0 8px 16px rgba(0,0,0,0.4));
+            filter: drop-shadow(0 12px 24px rgba(0,0,0,0.5));
         }
 
         .score-board {
@@ -122,11 +132,77 @@
             justify-content: space-between;
             margin-bottom: 20px;
             font-size: 1.2rem;
-            background: #0f172a;
-            padding: 12px 20px;
-            border-radius: 8px;
-            border: 1px solid #334155;
+            background: var(--bg-color);
+            padding: 14px 20px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
         }
+
+        /* PUBLIC LEADERBOARD SECTION */
+        .public-leaderboard-card {
+            margin-top: 25px;
+            background: var(--bg-color);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid var(--border);
+            text-align: left;
+        }
+        .leaderboard-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: var(--warning);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .leaderboard-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin-bottom: 4px;
+            background: rgba(255,255,255,0.02);
+            font-size: 0.95rem;
+        }
+        .leaderboard-row.top-three {
+            background: rgba(245, 158, 11, 0.1);
+            border-left: 3px solid var(--warning);
+        }
+
+        /* SCREEN BAN NOTIFICATION OVERLAY */
+        .ban-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #000;
+            color: var(--danger);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 2rem;
+            font-weight: 900;
+        }
+
+        /* LIVE ALERTS BROADCAST SUB-SYSTEM */
+        .alert-banner {
+            position: fixed;
+            top: 20px; left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            background: var(--purple);
+            color: white;
+            padding: 16px 32px;
+            border-radius: 12px;
+            font-weight: bold;
+            z-index: 5000;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.4);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            font-size: 1.1rem;
+            text-align: center;
+            max-width: 90%;
+        }
+        .alert-banner.active { transform: translateX(-50%) translateY(0); }
 
         .feedback-overlay {
             position: absolute;
@@ -135,15 +211,25 @@
             justify-content: center;
             align-items: center;
             font-size: 8rem;
-            background: rgba(15, 23, 42, 0.85);
+            background: rgba(11, 15, 25, 0.9);
             z-index: 10;
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.15s ease-in-out;
-            border-radius: 12px;
+            border-radius: 16px;
         }
         .feedback-overlay.show { opacity: 1; }
 
+        /* SETTINGS GEAR POSITIONING */
+        .settings-gear {
+            position: absolute;
+            top: 20px; right: 20px;
+            background: transparent;
+            border: none; font-size: 1.5rem;
+            width: auto; padding: 0; margin: 0;
+        }
+
+        /* ADMIN AREA EXPANSIONS */
         .admin-grid {
             display: grid;
             grid-template-columns: 1fr;
@@ -152,13 +238,14 @@
         }
         @media(min-width: 768px) {
             .admin-grid { grid-template-columns: 1fr 1fr; }
+            .admin-full-row { grid-column: span 2; }
         }
 
         .admin-panel-card {
-            background: #0f172a;
-            border: 1px solid #334155;
-            border-radius: 8px;
-            padding: 20px;
+            background: var(--card-inner);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
             text-align: left;
         }
 
@@ -169,61 +256,46 @@
             font-size: 0.95rem;
         }
         .admin-table th, .admin-table td {
-            padding: 12px 10px;
-            border-bottom: 1px solid #334155;
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
             text-align: left;
         }
-        .admin-table th { color: #94a3b8; font-weight: 600; text-transform: uppercase; font-size: 0.8rem; }
+        .admin-table th { color: var(--text-secondary); font-weight: 600; text-transform: uppercase; font-size: 0.75rem; }
         
-        .btn-danger-sm {
-            background: rgba(239, 68, 68, 0.2);
+        .badge-cheat {
+            background: rgba(239, 68, 68, 0.15);
             color: var(--danger);
-            border: 1px solid var(--danger);
-            padding: 6px 12px;
-            font-size: 0.85rem;
+            padding: 2px 6px;
             border-radius: 4px;
-            width: auto;
-            margin: 0;
-        }
-        .btn-danger-sm:hover { background: var(--danger); color: white; }
-
-        .status-badge {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 4px;
+            font-size: 0.75rem;
             font-weight: bold;
-            font-size: 0.8rem;
-            text-transform: uppercase;
-        }
-
-        .modal {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(15, 23, 42, 0.85);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 100;
-        }
-        .modal-content {
-            background: var(--card-bg);
-            padding: 30px;
-            border-radius: 12px;
-            width: 90%;
-            max-width: 400px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            border: 1px solid var(--danger);
         }
     </style>
 </head>
 <body>
 
+    <!-- GLOBAL BROADCAST BANNER -->
+    <div id="global-alert" class="alert-banner">📢 Broadcast Message</div>
+
+    <!-- TERMINATION BAN BLOCK SCREEN -->
+    <div id="banned-screen" class="ban-overlay hidden">
+        <div>⛔ ACCOUNT PERMANENTLY BANNED</div>
+        <p style="font-size: 1rem; color: var(--text-secondary); margin-top: 10px;">Your access code has been blacklisted by administration due to abnormal click patterns.</p>
+    </div>
+
     <!-- 1. COUNTDOWN SCREEN -->
     <div id="countdown-screen" class="container">
         <button id="gear-btn" class="settings-gear hidden" onclick="openSettings()">⚙️</button>
-        <h1 id="countdown-title">Blook Arena Starting Soon</h1>
-        <p id="user-status-msg" style="color: #94a3b8;">Create an account or login below to lock in your spot.</p>
+        <h1 id="countdown-title">Blook Arena</h1>
+        <p id="user-status-msg" style="color: var(--text-secondary);">Register an identifier entry track below.</p>
         <div id="timer" class="timer">00:00:00</div>
         <button id="join-btn" onclick="navigateTo('/login')">Pre-Register / Login</button>
+
+        <div class="public-leaderboard-card">
+            <div class="leaderboard-title">🏆 Global Live Standings</div>
+            <div id="public-countdown-leaderboard"></div>
+        </div>
     </div>
 
     <!-- 2. AUTHENTICATION SCREEN -->
@@ -232,7 +304,7 @@
         <input type="text" id="username" placeholder="Choose Username" required>
         <input type="password" id="password" placeholder="Choose Password" required>
         <button id="auth-btn" onclick="handleAuth()">Register & Join</button>
-        <p style="font-size: 0.9rem; color: #94a3b8; cursor: pointer; margin-top: 15px;" onclick="toggleAuthMode()">
+        <p style="font-size: 0.9rem; color: var(--text-secondary); cursor: pointer; margin-top: 15px;" onclick="toggleAuthMode()">
             Already registered? Switch to Login
         </p>
         <button onclick="navigateTo('/home')" style="background: #475569; margin-top: 15px;">Back</button>
@@ -250,22 +322,35 @@
         </div>
         <input type="text" id="answer" placeholder="Type Blook name and press Enter..." autocomplete="off">
         <button id="submit-btn" onclick="checkAnswer()" style="background: var(--success); padding: 15px; font-size: 1.1rem;">Submit Guess</button>
+        
+        <div class="public-leaderboard-card">
+            <div class="leaderboard-title">⚡ Arena Rankings</div>
+            <div id="public-game-leaderboard"></div>
+        </div>
     </div>
 
     <!-- 4. ADMIN CONTROL PANEL -->
-    <div id="admin-screen" class="container hidden" style="max-width: 950px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 15px; margin-bottom: 15px;">
+    <div id="admin-screen" class="container hidden" style="max-width: 1050px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 15px; margin-bottom: 15px;">
             <div style="text-align: left;">
-                <h1 style="margin: 0; font-size: 1.8rem;">Admin Command Station</h1>
-                <p style="margin: 5px 0 0 0; color: #94a3b8; font-size: 0.9rem;">Live Event State Optimization & User Database Auditing</p>
+                <h1 style="margin: 0; font-size: 1.8rem; color: var(--purple);">Admin Command Station</h1>
+                <p style="margin: 5px 0 0 0; color: var(--text-secondary); font-size: 0.9rem;">Live Event State Optimization & User Database Auditing</p>
             </div>
             <button onclick="logoutAdmin()" style="background: #334155; width: auto; padding: 8px 16px; margin: 0;">Exit Console</button>
         </div>
 
         <div class="admin-grid">
+            <!-- ALERTS SYSTEM -->
+            <div class="admin-panel-card admin-full-row">
+                <h3 style="color: var(--purple); margin-top: 0;">📢 Global Notification System</h3>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="admin-announcement-input" placeholder="Type notification statement to blast live to all screens..." style="margin: 0;">
+                    <button onclick="sendAdminAnnouncement()" style="background: var(--purple); width: auto; white-space: nowrap; margin: 0; padding: 0 24px;">Blast Alert</button>
+                </div>
+            </div>
+
             <div class="admin-panel-card">
                 <h3 style="color: var(--accent); margin-top: 0;">⚡ Real-time State Control</h3>
-                <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 15px;">Force-override scheduling variables globally across clients instantly.</p>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                     <button onclick="adminSetState('live')" style="background: var(--success); font-weight: bold; margin: 0;">🚀 Launch Live Event</button>
                     <button onclick="adminSetState('over')" style="background: var(--danger); font-weight: bold; margin: 0;">🛑 Kill / End Event</button>
@@ -273,38 +358,33 @@
                 <button onclick="adminSetState('countdown')" style="background: #475569; font-weight: bold; margin-top: 10px;">🔄 Reset to Active Countdown</button>
             </div>
 
+            <!-- COOLDOWN AND ANTICHEAT METRICS CONFIG -->
             <div class="admin-panel-card">
-                <h3 style="color: var(--warning); margin-top: 0;">📅 Schedule Configuration</h3>
-                <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 5px;">Set a countdown length from right now. Supports any amount of hours.</p>
-                <div style="display: flex; gap: 10px; align-items: center; margin-top: 5px;">
+                <h3 style="color: var(--warning); margin-top: 0;">🛡️ Cooldown & Security Parameters</h3>
+                <div style="display: flex; gap: 15px;">
                     <div style="flex: 1;">
-                        <label style="font-size: 0.75rem; font-weight: bold; color: #94a3b8; text-transform: uppercase;">Hours from now</label>
-                        <input type="number" id="sched-hour" min="0" value="0" style="margin: 5px 0;">
+                        <label style="font-size: 0.75rem; font-weight: bold; color: var(--text-secondary);">COOLDOWN TIME (SEC)</label>
+                        <input type="number" id="cfg-cooldown" min="0" max="10" step="0.5" value="2" style="margin: 5px 0;">
                     </div>
                     <div style="flex: 1;">
-                        <label style="font-size: 0.75rem; font-weight: bold; color: #94a3b8; text-transform: uppercase;">Minutes from now</label>
-                        <input type="number" id="sched-min" min="0" value="30" style="margin: 5px 0;">
+                        <label style="font-size: 0.75rem; font-weight: bold; color: var(--text-secondary);">SUSPICIOUS RATE (MS)</label>
+                        <input type="number" id="cfg-speed-limit" min="200" max="2000" step="50" value="650" style="margin: 5px 0;">
                     </div>
                 </div>
-                <button onclick="updateAdminSchedule()" style="background: var(--warning); color: #0f172a; margin-top: 5px;">💾 Broadcast New System Time</button>
+                <button onclick="updateSystemSecurity()" style="background: var(--warning); color: #0f172a; margin-top: 5px; font-weight: bold;">💾 Push Security Rules</button>
             </div>
         </div>
 
         <div class="admin-panel-card" style="margin-top: 20px;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h3 style="color: var(--success); margin: 0;">👥 Registered Competitors Ledger</h3>
-                <div>
-                    <span style="font-size: 0.85rem; color: #94a3b8;">Status: </span>
-                    <span id="global-status-badge" class="status-badge" style="background: #334155; color: #cbd5e1;">Syncing</span>
-                </div>
-            </div>
+            <h3 style="color: var(--success); margin-top: 0;">👥 Registered Competitors Ledger</h3>
             <div style="overflow-x: auto;">
                 <table class="admin-table">
                     <thead>
                         <tr>
                             <th>User Context Handle</th>
-                            <th>Credentials Profile</th>
                             <th>Performance Metric</th>
+                            <th>Speed Tracking</th>
+                            <th>Status Flags</th>
                             <th style="text-align: right;">Administrative Action</th>
                         </tr>
                     </thead>
@@ -333,7 +413,7 @@
         </div>
     </div>
 
-    <!-- FIREBASE MODULES -->
+    <!-- FIREBASE SYSTEM LOGIC -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, set, onValue, update, get, child, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
@@ -363,7 +443,11 @@
         let isLoginMode = false;
         let isLockoutActive = false;
 
-        // Blooket Asset Resources Dataset
+        // Anti-Cheat Engine state variables
+        let globalCooldownSetting = 2; // Default validation timer offset
+        let executionSpeedLimit = 650; // Milliseconds below which input triggers flag
+        let lastSubmissionTimestamp = 0;
+
         const BLOOK_DATASET = [
             { name: "buccaneer", url: "https://ac.blooket.com/marketassets/blooks/buccaneer.svg" },
             { name: "two of spades", url: "https://ac.blooket.com/marketassets/blooks/twoofspades.svg" },
@@ -379,28 +463,75 @@
             { name: "tyrannosaurus rex", url: "https://ac.blooket.com/marketassets/blooks/tyrannosaurusrex.svg" }
         ];
 
-        // 1. DYNAMIC STATE WATCHER
+        // 1. SYSTEM STRUCT WATCHER
         onValue(ref(db, 'system_config'), (snapshot) => {
             const data = snapshot.val();
             if (data) {
                 if (data.state) currentSystemState = data.state;
-                if (data.targetTimestamp !== undefined) {
-                    absoluteTargetTimestamp = data.targetTimestamp;
-                }
+                if (data.targetTimestamp !== undefined) absoluteTargetTimestamp = data.targetTimestamp;
                 
-                const badge = document.getElementById('global-status-badge');
-                if (badge) {
-                    badge.innerText = currentSystemState;
-                    if (currentSystemState === 'live') { badge.style.background = 'var(--success)'; badge.style.color = '#fff'; }
-                    else if (currentSystemState === 'over') { badge.style.background = 'var(--danger)'; badge.style.color = '#fff'; }
-                    else { badge.style.background = 'var(--warning)'; badge.style.color = '#0f172a'; }
+                // Sync admin panel options cleanly if visible
+                if (data.cooldown !== undefined) {
+                    globalCooldownSetting = data.cooldown;
+                    const cElem = document.getElementById('cfg-cooldown');
+                    if (cElem) cElem.value = globalCooldownSetting;
+                }
+                if (data.speedLimit !== undefined) {
+                    executionSpeedLimit = data.speedLimit;
+                    const sElem = document.getElementById('cfg-speed-limit');
+                    if (sElem) sElem.value = executionSpeedLimit;
                 }
 
                 evaluateActiveUIRoute();
             }
         });
 
-        // 2. ABSOLUTE MILLISECOND TIMING SUBSYSTEM
+        // 2. LIVE ANNOUNCEMENTS SUBSYSTEM
+        onValue(ref(db, 'system_config/announcement'), (snapshot) => {
+            const text = snapshot.val();
+            if (text && text.trim() !== "") {
+                const banner = document.getElementById('global-alert');
+                banner.innerText = `📢 ${text}`;
+                banner.classList.add('active');
+                setTimeout(() => { banner.classList.remove('active'); }, 5000);
+            }
+        });
+
+        // 3. ACCOUNT BAN REPLICATION MONITOR
+        function attachUserBanMonitor(username) {
+            onValue(ref(db, `players/${username}/isBanned`), (snapshot) => {
+                if (snapshot.val() === true) {
+                    document.getElementById('banned-screen').classList.remove('hidden');
+                    // Completely lock down interaction layer
+                    currentUser = null;
+                    ['countdown-screen', 'auth-screen', 'game-screen', 'admin-screen'].forEach(id => {
+                        document.getElementById(id).classList.add('hidden');
+                    });
+                }
+            });
+        }
+
+        // 4. HIGH PERFORMANCE LIVE LEADERBOARD MATRIX
+        onValue(ref(db, 'players'), (snapshot) => {
+            const data = snapshot.val();
+            const players = data ? Object.keys(data).map(k => data[k]).filter(p => !p.isBanned).sort((a,b) => b.score - a.score) : [];
+            
+            const renderLeaderboardHTML = (list) => {
+                if (list.length === 0) return `<div style="color:var(--text-secondary); text-align:center; font-size:0.9rem;">Waiting for entries...</div>`;
+                return list.slice(0, 5).map((p, idx) => `
+                    <div class="leaderboard-row ${idx < 3 ? 'top-three' : ''}">
+                        <span><strong>#${idx + 1}</strong> ${p.username}</span>
+                        <span style="color:var(--success); font-weight:bold;">${p.score} pts</span>
+                    </div>
+                `).join('');
+            };
+
+            const html = renderLeaderboardHTML(players);
+            document.getElementById('public-countdown-leaderboard').innerHTML = html;
+            document.getElementById('public-game-leaderboard').innerHTML = html;
+        });
+
+        // 5. TIMER MANAGEMENT
         function runTimerTick() {
             if (currentSystemState === "live") {
                 document.getElementById("timer").innerHTML = "ARENA LIVE!";
@@ -417,10 +548,7 @@
             
             if (distance <= 0) {
                 document.getElementById("timer").innerHTML = "ARENA LIVE!";
-                document.getElementById("countdown-title").innerText = "Blook Arena Starting Soon";
-                if (currentUser && currentUser !== ADMIN_USER) {
-                    navigateTo('/game');
-                }
+                if (currentUser && currentUser !== ADMIN_USER) navigateTo('/game');
                 return;
             }
 
@@ -429,13 +557,11 @@
             const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
             const seconds = Math.floor((distance % (1000 * 60)) / 1000);
 
-            document.getElementById("timer").innerHTML = 
-                `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-            document.getElementById("countdown-title").innerText = "Blook Arena Starting Soon";
+            document.getElementById("timer").innerHTML = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
         }
         setInterval(runTimerTick, 1000);
 
-        // 3. ROUTER
+        // 6. SINGLE PAGE APPLICATION ROUTING
         window.navigateTo = function(path) {
             window.history.pushState({}, "", path);
             evaluateActiveUIRoute();
@@ -445,7 +571,7 @@
             const path = window.location.pathname;
             
             if (currentSystemState === "live" && currentUser && currentUser !== ADMIN_USER && path !== '/game') {
-                window.history.history.pushState({}, "", '/game');
+                window.history.pushState({}, "", '/game');
                 return evaluateActiveUIRoute();
             }
             if (currentSystemState === "over" && currentUser && currentUser !== ADMIN_USER && path === '/game') {
@@ -461,7 +587,6 @@
                 document.getElementById('auth-screen').classList.remove('hidden');
             } else if (path === '/game') {
                 if (!currentUser) return navigateTo('/login');
-                if (currentSystemState === "over") return navigateTo('/home');
                 document.getElementById('game-screen').classList.remove('hidden');
                 generateProblem();
             } else if (path === '/admin') {
@@ -481,7 +606,7 @@
             document.getElementById('auth-btn').innerText = isLoginMode ? "Login" : "Register & Join";
         }
 
-        // 4. AUTH ENGINE
+        // 7. SECURE AUTH ENGINE
         window.handleAuth = async function() {
             const user = document.getElementById('username').value.trim();
             const pass = document.getElementById('password').value;
@@ -499,6 +624,7 @@
                 if (isLoginMode) {
                     if (snapshot.exists()) {
                         const playerData = snapshot.val();
+                        if (playerData.isBanned) return alert("This entry channel has been permanently banned.");
                         if (playerData.password === pass) {
                             currentUser = user;
                             score = playerData.score || 0;
@@ -506,13 +632,14 @@
                     } else { return alert("Username does not exist!"); }
                 } else {
                     if (snapshot.exists()) return alert("Username taken!");
-                    await set(ref(db, 'players/' + user), { username: user, password: pass, score: 0, hasEdited: false });
+                    await set(ref(db, 'players/' + user), { username: user, password: pass, score: 0, hasEdited: false, isBanned: false, executionSpeedDelta: 0, flagged: false });
                     currentUser = user;
                     score = 0;
                 }
 
                 document.getElementById('player-name').innerText = currentUser;
                 document.getElementById('score-val').innerText = score;
+                attachUserBanMonitor(currentUser);
 
                 if (currentSystemState === "live") {
                     navigateTo('/game');
@@ -525,47 +652,46 @@
             } catch (error) { alert("Database Error: " + error.message); }
         }
 
-        // 5. ADMIN CONTROL ACTIONS
+        // 8. ADMIN DEPLOYMENT CONTROLS & SECURITY ADJUSTMENTS
         window.adminSetState = async function(nextState) {
+            try { await update(ref(db, 'system_config'), { state: nextState }); } catch (e) { alert("State modification failed."); }
+        }
+
+        window.updateSystemSecurity = async function() {
+            const coolVal = parseFloat(document.getElementById('cfg-cooldown').value);
+            const speedVal = parseInt(document.getElementById('cfg-speed-limit').value);
+            
+            if (isNaN(coolVal) || coolVal < 0 || isNaN(speedVal) || speedVal < 0) return alert("Provide logical values.");
+
             try {
-                await update(ref(db, 'system_config'), { state: nextState });
-            } catch (e) { alert("State modification failed."); }
+                await update(ref(db, 'system_config'), { cooldown: coolVal, speedLimit: speedVal });
+                alert("Security policy updated across global channels!");
+            } catch(e) { alert("Failed to save rules."); }
         }
 
-        window.updateAdminSchedule = async function() {
-            const inputHours = parseInt(document.getElementById('sched-hour').value);
-            const inputMinutes = parseInt(document.getElementById('sched-min').value);
-            
-            if (isNaN(inputHours) || inputHours < 0 || isNaN(inputMinutes) || inputMinutes < 0) {
-                return alert("Please enter valid positive numbers for hours/minutes.");
-            }
-            
-            const totalMsOffset = (inputHours * 60 * 60 * 1000) + (inputMinutes * 60 * 1000);
-            const calculatedFutureTarget = new Date().getTime() + totalMsOffset;
-            
+        window.sendAdminAnnouncement = async function() {
+            const input = document.getElementById('admin-announcement-input');
+            const msg = input.value.trim();
+            if (msg === "") return;
             try {
-                await update(ref(db, 'system_config'), { 
-                    targetTimestamp: calculatedFutureTarget 
-                });
-                alert("New countdown length successfully broadcasted to all users!");
-            } catch (e) { alert("Schedule configuration failed."); }
+                await set(ref(db, 'system_config/announcement'), msg);
+                input.value = "";
+                setTimeout(() => { set(ref(db, 'system_config/announcement'), ""); }, 1000);
+            } catch(e) { alert("Broadcast delivery error."); }
         }
 
-        window.adminRemovePlayer = async function(playerHandle) {
-            if (confirm(`Are you sure you want to PERMANENTLY remove and delete ${playerHandle} from the database?`)) {
-                try {
-                    await remove(ref(db, `players/${playerHandle}`));
-                } catch(e) { alert("Failed to complete record deletion process."); }
-            }
+        window.adminToggleBanPlayer = async function(playerHandle, banState) {
+            try {
+                await update(ref(db, `players/${playerHandle}`), { isBanned: banState });
+            } catch(e) { alert("Action execution failure."); }
         }
 
-        // 6. LIVE GAME ENGINE (Blook Mode)
+        // 9. LIVE GAME LOGIC + AUTOMATED ANOMALY DETECTION ENGINE
         function generateProblem() {
-            // Select a random Blook asset from the catalog array
             const randomBlook = BLOOK_DATASET[Math.floor(Math.random() * BLOOK_DATASET.length)];
-
             document.getElementById('blook-display').src = randomBlook.url;
             currentBlookAnswer = randomBlook.name;
+            lastSubmissionTimestamp = performance.now();
             
             const ansInput = document.getElementById('answer');
             if (ansInput) {
@@ -580,6 +706,9 @@
         window.checkAnswer = async function() {
             if (isLockoutActive || currentSystemState === "over") return; 
             
+            const now = performance.now();
+            const timeDeltaMs = now - lastSubmissionTimestamp; // Exact user latency interval calculation
+            
             const ansInput = document.getElementById('answer');
             const submitBtn = document.getElementById('submit-btn');
             const overlay = document.getElementById('feedback-layer');
@@ -591,74 +720,97 @@
             ansInput.disabled = true;
             submitBtn.disabled = true;
 
-            // Sanitize string and compare variations (e.g. "tyrannosaurusrex" vs "tyrannosaurus rex")
             const formattedCorrectAnswer = currentBlookAnswer.replace(/\s+/g, '');
             const formattedUserAnswer = userAns.replace(/\s+/g, '');
+            const isCorrect = (formattedUserAnswer === formattedCorrectAnswer || userAns === currentBlookAnswer);
 
-            if (formattedUserAnswer === formattedCorrectAnswer || userAns === currentBlookAnswer) {
+            // Flag system for users generating values below execution boundary line
+            const suspiciousFlag = timeDeltaMs < executionSpeedLimit;
+
+            if (isCorrect) {
                 score++;
                 document.getElementById('score-val').innerText = score;
                 overlay.innerHTML = "✔️";
                 overlay.style.color = "var(--success)";
-                await update(ref(db, 'players/' + currentUser), { score: score });
             } else {
                 overlay.innerHTML = "❌";
                 overlay.style.color = "var(--danger)";
             }
 
+            // Remote async database metric push including algorithmic velocity profiling
+            await update(ref(db, 'players/' + currentUser), { 
+                score: score,
+                executionSpeedDelta: Math.round(timeDeltaMs),
+                flagged: suspiciousFlag
+            });
+
             overlay.classList.add('show');
 
             setTimeout(() => {
                 overlay.classList.remove('show');
-                startAntiCheatTimer(2);
-            }, 1000);
+                startAntiCheatTimer(globalCooldownSetting);
+            }, 800);
         }
 
         function startAntiCheatTimer(secondsLeft) {
             const ansInput = document.getElementById('answer');
+            if (secondsLeft <= 0) {
+                isLockoutActive = false;
+                if (currentSystemState !== "over") generateProblem();
+                return;
+            }
+            
             const interval = setInterval(() => {
                 if (secondsLeft <= 0 || currentSystemState === "over") {
                     clearInterval(interval);
                     isLockoutActive = false;
                     if (currentSystemState !== "over") generateProblem();
                 } else {
-                    ansInput.placeholder = `🔒 Cooldown Active... (${secondsLeft}s)`;
-                    secondsLeft--;
+                    ansInput.placeholder = `🔒 Cooldown Active... (${secondsLeft.toFixed(1)}s)`;
+                    secondsLeft -= 0.5;
                 }
-            }, 1000);
+            }, 500);
         }
 
         document.getElementById('answer').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') checkAnswer();
         });
 
-        // 7. LEADERBOARD
+        // 10. REALTIME AUDIT LOGS FOR ADMINISTRATION PANEL
         function listenToLeaderboard() {
             const tbody = document.getElementById('admin-list');
             onValue(ref(db, 'players'), (snapshot) => {
                 tbody.innerHTML = '';
                 const data = snapshot.val();
                 if (!data) {
-                    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#64748b; padding:20px;">No players registered in ledger</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-secondary); padding:20px;">No players in database</td></tr>`;
                     return;
                 }
                 const players = Object.keys(data).map(key => data[key]).sort((a, b) => b.score - a.score);
                 players.forEach(p => {
                     const tr = document.createElement('tr');
+                    if (p.flagged && !p.isBanned) tr.style.background = "rgba(239, 68, 68, 0.04)";
+                    
+                    const statusTag = p.isBanned ? `<span class="badge-cheat" style="background:rgba(239,68,68,0.2);color:var(--danger)">BANNED</span>` : 
+                                      (p.flagged ? `<span class="badge-cheat">⚠️ SPAM RISK</span>` : `<span style="color:var(--success); font-size:0.85rem;">✔ CLEAN</span>`);
+                    
+                    const banActionButton = p.isBanned ? 
+                        `<button class="btn-danger-sm" style="background:rgba(16,185,129,0.2); color:var(--success); border-color:var(--success);" onclick="adminToggleBanPlayer('${p.username}', false)">Unban Account</button>` :
+                        `<button class="btn-danger-sm" onclick="adminToggleBanPlayer('${p.username}', true)">Ban Live</button>`;
+
                     tr.innerHTML = `
                         <td style="font-weight:bold; color:#cbd5e1;">${p.username}</td>
-                        <td style="font-family: monospace; color: #64748b;">${p.password}</td>
                         <td style="font-weight:bold; color:var(--success);">${p.score} pts</td>
-                        <td style="text-align: right;">
-                            <button class="btn-danger-sm" onclick="adminRemovePlayer('${p.username}')">Remove Account</button>
-                        </td>
+                        <td style="font-family: monospace; ${p.flagged && !p.isBanned ? 'color:var(--danger);font-weight:bold;' : 'color:var(--text-secondary);'}">${p.executionSpeedDelta || 0}ms</td>
+                        <td>${statusTag}</td>
+                        <td style="text-align: right;">${banActionButton}</td>
                     `;
                     tbody.appendChild(tr);
                 });
             });
         }
 
-        // 8. PROFILE MODALS
+        // 11. PROFILE MODALS
         window.openSettings = async function() {
             try {
                 const snapshot = await get(ref(db, `players/${currentUser}`));
@@ -691,7 +843,7 @@
                     const checkSnap = await get(ref(db, `players/${newU}`));
                     if (checkSnap.exists()) return alert("That username is already taken!");
                     await remove(ref(db, `players/${currentUser}`));
-                    await set(ref(db, `players/${newU}`), { username: newU, password: newP, score: score, hasEdited: true });
+                    await set(ref(db, `players/${newU}`), { username: newU, password: newP, score: score, hasEdited: true, isBanned: false });
                 } else {
                     await update(ref(db, `players/${currentUser}`), { password: newP, hasEdited: true });
                 }
@@ -704,7 +856,7 @@
 
         window.handleUserLogout = function() {
             currentUser = null; score = 0;
-            document.getElementById('user-status-msg').innerText = "Create an account or login below to lock in your spot.";
+            document.getElementById('user-status-msg').innerText = "Register an identifier entry track below.";
             document.getElementById('join-btn').classList.remove('hidden');
             document.getElementById('gear-btn').classList.add('hidden');
             closeSettings(); navigateTo('/home');
